@@ -1,0 +1,11 @@
+rmbt
+.git_version
+core
+*.o
+*.d
+.settings
+.project
+.cproject
+*.swp
+*~
+tmp/
