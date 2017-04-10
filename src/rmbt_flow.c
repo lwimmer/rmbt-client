@@ -594,6 +594,8 @@ static bool connect_to_server(State *s) {
 
 	s->socket_fd = sfd;
 
+	stats_thread_set_sfd(s->targ->thread_num, sfd);
+
 	char buf[64];
 	socklen_t buf_len = sizeof(buf);
 	if (getsockopt(sfd, 6, TCP_CONGESTION, &buf, &buf_len) == 0)
@@ -697,6 +699,7 @@ static bool disconnect(State *s) {
 		s->ssl = NULL;
 	}
 	close(s->socket_fd);
+	stats_thread_set_sfd(s->targ->thread_num, -1);
 	return true;
 }
 
@@ -1107,8 +1110,6 @@ static bool run_test(State *s) {
 	if (!ok)
 		return false;
 
-	print_tcp_info(s->socket_fd, stderr);
-
 	barrier_wait(s);
 	my_log(s, "connected with %" PRIuFAST16 " flow(s) for dl; %" PRIuFAST16 " flow(s) for ul", s->config->dl_num_flows, s->config->ul_num_flows);
 
@@ -1167,8 +1168,6 @@ static bool run_test(State *s) {
 		barrier_wait(s); // there is a barrier_wait in do_uplink
 	barrier_wait(s);
 	my_log(s, "uplink test end.");
-
-	print_tcp_info(s->socket_fd, stderr);
 
 	/* end */
 	set_phase(s, PH_end);

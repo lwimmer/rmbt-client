@@ -243,7 +243,7 @@ static void add_common_results(Result *result, json_object *result_json) {
 	if (result->total_bytes_ul > 0)
 		json_object_object_add(result_json, "res_total_bytes_ul", json_object_new_int64(result->total_bytes_ul));
 
-	json_object_object_add(result_json, "res_utsname", get_utsname());
+	get_uname(result_json);
 }
 
 json_object *collect_summary_results(Result *result) {

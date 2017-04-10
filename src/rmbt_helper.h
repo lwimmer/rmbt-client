@@ -20,6 +20,7 @@
 #include "rmbt_common.h"
 
 void fail(const char *format, ...) __attribute__ ((noreturn,format (printf, 1, 2)));
+void fail_errno(int err, const char *fmt, ...) __attribute__ ((noreturn,format (printf, 2, 3)));
 void fail_ssl(void) __attribute__ ((noreturn));
 void ts_fill(struct timespec *now) __attribute__ ((hot));
 int_fast64_t ts_diff(struct timespec *start) __attribute__ ((hot));

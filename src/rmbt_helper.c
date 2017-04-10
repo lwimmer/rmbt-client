@@ -30,6 +30,17 @@ void fail(const char *fmt, ...) {
 	exit(EXIT_FAILURE);
 }
 
+void fail_errno(int err, const char *fmt, ...) {
+	va_list ap;
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	errno = err;
+	perror("error: ");
+	fprintf(stderr, "\n");
+	exit(EXIT_FAILURE);
+}
+
 void fail_ssl() {
 	fprintf(stderr, "ssl error:\n");
 	ERR_print_errors_fp(stderr);

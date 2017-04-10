@@ -16,146 +16,173 @@
 
 #include "rmbt_stats.h"
 
+#include <time.h>
+#include <sys/types.h>
 #include <sys/utsname.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 
-json_object *get_utsname(void) {
+#include "rmbt_helper.h"
+
+#define RMBT_STATS_INCREMENT	512
+
+static pthread_mutex_t stats_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t stats_cnd = PTHREAD_COND_INITIALIZER;
+static StatsThreadArg *stats_arg = NULL;
+
+ void get_uname(json_object *obj) {
 	struct utsname n;
 	if (uname(&n) < 0)
-		return NULL;
-	json_object *ret = json_object_new_object();
-	json_object_object_add(ret, "sysname", json_object_new_string(n.sysname));
-	json_object_object_add(ret, "nodename", json_object_new_string(n.nodename));
-	json_object_object_add(ret, "release", json_object_new_string(n.release));
-	json_object_object_add(ret, "version", json_object_new_string(n.version));
-	json_object_object_add(ret, "machine", json_object_new_string(n.machine));
-	return ret;
+		return;
+	json_object_object_add(obj, "res_uname_sysname", json_object_new_string(n.sysname));
+	json_object_object_add(obj, "res_uname_nodename", json_object_new_string(n.nodename));
+	json_object_object_add(obj, "res_uname_release", json_object_new_string(n.release));
+	json_object_object_add(obj, "res_uname_version", json_object_new_string(n.version));
+	json_object_object_add(obj, "res_uname_machine", json_object_new_string(n.machine));
 }
 
+static void tcp_info_set_json(json_object *obj, struct rmbt_tcp_info *i, socklen_t i_len) {
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_state);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_ca_state);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_retransmits);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_probes);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_backoff);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_options);
+	JSON_ADD_OBJ_TCP_INFO_BITFIELD(i_len, obj, tcpi_snd_wscale, tcpi_rto);
+	JSON_ADD_OBJ_TCP_INFO_BITFIELD(i_len, obj, tcpi_rcv_wscale, tcpi_rto);
 
-#ifndef __linux__
+	/* tcpi_busy_time because tcpi_delivery_rate_app_limited was introduced with tcpi_delivery_rate */
+	JSON_ADD_OBJ_TCP_INFO_BITFIELD(i_len, obj, tcpi_delivery_rate_app_limited, tcpi_busy_time);
 
-/* tcp_info is available on FreeBSD and possibly others, but we do not support it currently */
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_rto);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_ato);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_snd_mss);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_rcv_mss);
 
-#pragma GCC diagnostic push  // require GCC 4.6
-#pragma GCC diagnostic ignored "-Wunused-parameter" // json_object_object_foreachC otherwise leads to warnings
-json_object *read_tcp_info(int sfd) {
-	return NULL;
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_unacked);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_sacked);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_lost);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_retrans);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_fackets);
+
+
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_last_data_sent);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_last_ack_sent);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_last_data_recv);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_last_ack_recv);
+
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_pmtu);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_rcv_ssthresh);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_rtt);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_rttvar);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_snd_ssthresh);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_snd_cwnd);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_advmss);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_reordering);
+
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_rcv_rtt);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_rcv_space);
+
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_total_retrans);
+
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_pacing_rate);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_max_pacing_rate);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_bytes_acked);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_bytes_received);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_segs_out);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_segs_in);
+
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_notsent_bytes);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_min_rtt);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_data_segs_in);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_data_segs_out);
+
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_delivery_rate);
+
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_busy_time);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_rwnd_limited);
+	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_sndbuf_limited);
 }
 
-void add_tcp_info(int sfd, json_object *array) {
-	return;
+static json_object *get_tcp_info_entry_as_json_object(TcpInfoEntry* e) {
+	json_object *obj = json_object_new_object();
+	tcp_info_set_json(obj, &e->tcp_info, e->tcp_info_length);
+	json_object_object_add(obj, "timestamp_ns", json_object_new_int64(e->ts));
+	return obj;
 }
 
-void print_tcp_info(int sfd, FILE *f) {
-	fprintf(f, "no tcp_info available (not linux)\n");
-}
-#pragma GCC diagnostic pop  // require GCC 4.6
-
-#else
-
-#include <sys/socket.h>
-#include <linux/tcp.h>
-#include <linux/version.h>
-#include <netinet/in.h>
-
-static json_object *tcp_info_to_json(struct tcp_info *i) {
-	json_object *ret = json_object_new_object();
-
-	json_object_object_add(ret, "tcpi_state", json_object_new_int(i->tcpi_state));
-	json_object_object_add(ret, "tcpi_ca_state", json_object_new_int(i->tcpi_ca_state));
-	json_object_object_add(ret, "tcpi_retransmits", json_object_new_int(i->tcpi_retransmits));
-	json_object_object_add(ret, "tcpi_probes", json_object_new_int(i->tcpi_probes));
-	json_object_object_add(ret, "tcpi_backoff", json_object_new_int(i->tcpi_backoff));
-	json_object_object_add(ret, "tcpi_options", json_object_new_int(i->tcpi_options));
-	json_object_object_add(ret, "tcpi_snd_wscale", json_object_new_int(i->tcpi_snd_wscale));
-	json_object_object_add(ret, "tcpi_rcv_wscale", json_object_new_int(i->tcpi_rcv_wscale));
-
-	json_object_object_add(ret, "tcpi_rto", json_object_new_int64(i->tcpi_rto));
-	json_object_object_add(ret, "tcpi_ato", json_object_new_int64(i->tcpi_ato));
-	json_object_object_add(ret, "tcpi_snd_mss", json_object_new_int64(i->tcpi_snd_mss));
-	json_object_object_add(ret, "tcpi_rcv_mss", json_object_new_int64(i->tcpi_rcv_mss));
-
-	json_object_object_add(ret, "tcpi_unacked", json_object_new_int64(i->tcpi_unacked));
-	json_object_object_add(ret, "tcpi_sacked", json_object_new_int64(i->tcpi_sacked));
-	json_object_object_add(ret, "tcpi_lost", json_object_new_int64(i->tcpi_lost));
-	json_object_object_add(ret, "tcpi_retrans", json_object_new_int64(i->tcpi_retrans));
-	json_object_object_add(ret, "tcpi_fackets", json_object_new_int64(i->tcpi_fackets));
-
-	json_object_object_add(ret, "tcpi_last_data_sent", json_object_new_int64(i->tcpi_last_data_sent));
-	json_object_object_add(ret, "tcpi_last_ack_sent", json_object_new_int64(i->tcpi_last_ack_sent));
-	json_object_object_add(ret, "tcpi_last_data_recv", json_object_new_int64(i->tcpi_last_data_recv));
-	json_object_object_add(ret, "tcpi_last_ack_recv", json_object_new_int64(i->tcpi_last_ack_recv));
-
-	json_object_object_add(ret, "tcpi_pmtu", json_object_new_int64(i->tcpi_pmtu));
-	json_object_object_add(ret, "tcpi_rcv_ssthresh", json_object_new_int64(i->tcpi_rcv_ssthresh));
-	json_object_object_add(ret, "tcpi_rtt", json_object_new_int64(i->tcpi_rtt));
-	json_object_object_add(ret, "tcpi_rttvar", json_object_new_int64(i->tcpi_rttvar));
-	json_object_object_add(ret, "tcpi_snd_ssthresh", json_object_new_int64(i->tcpi_snd_ssthresh));
-	json_object_object_add(ret, "tcpi_snd_cwnd", json_object_new_int64(i->tcpi_snd_cwnd));
-	json_object_object_add(ret, "tcpi_advmss", json_object_new_int64(i->tcpi_advmss));
-	json_object_object_add(ret, "tcpi_reordering", json_object_new_int64(i->tcpi_reordering));
-
-	json_object_object_add(ret, "tcpi_rcv_rtt", json_object_new_int64(i->tcpi_rcv_rtt));
-	json_object_object_add(ret, "tcpi_rcv_space", json_object_new_int64(i->tcpi_rcv_space));
-
-	json_object_object_add(ret, "tcpi_total_retrans", json_object_new_int64(i->tcpi_total_retrans));
-
-	json_object_object_add(ret, "tcpi_pacing_rate", json_object_new_int64((int64_t)i->tcpi_pacing_rate));
-	json_object_object_add(ret, "tcpi_max_pacing_rate", json_object_new_int64((int64_t)i->tcpi_max_pacing_rate));
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
-	/* 0df48c26d8418c5c9fba63fac15b660d70ca2f1c */
-	json_object_object_add(ret, "tcpi_bytes_acked", json_object_new_int64((int64_t)i->tcpi_bytes_acked));
-	/* bdd1f9edacb5f5835d1e6276571bbbe5b88ded48 */
-	json_object_object_add(ret, "tcpi_bytes_received", json_object_new_int64((int64_t)i->tcpi_bytes_received));
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,2,0)
-	/* 2efd055c53c06b7e89c167c98069bab9afce7e59 */
-	json_object_object_add(ret, "tcpi_segs_out", json_object_new_int64(i->tcpi_segs_out));
-	json_object_object_add(ret, "tcpi_segs_in", json_object_new_int64(i->tcpi_segs_in));
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
-	/* cd9b266095f422267bddbec88f9098b48ea548fc */
-	json_object_object_add(ret, "tcpi_notsent_bytes", json_object_new_int64(i->tcpi_notsent_bytes));
-	json_object_object_add(ret, "tcpi_min_rtt", json_object_new_int64(i->tcpi_min_rtt));
-
-	/* a44d6eacdaf56f74fad699af7f4925a5f5ac0e7f */
-	json_object_object_add(ret, "tcpi_data_segs_in", json_object_new_int64(i->tcpi_data_segs_in));
-	json_object_object_add(ret, "tcpi_data_segs_out", json_object_new_int64(i->tcpi_data_segs_out));
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,9,0)
-	/* eb8329e0a04db0061f714f033b4454326ba147f4 */
-	json_object_object_add(ret, "tcpi_delivery_rate", json_object_new_int64((int64_t)i->tcpi_delivery_rate));
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
-	/* efd90174167530c67a54273fd5d8369c87f9bd32 */
-	json_object_object_add(ret, "tcpi_busy_time", json_object_new_int64((int64_t)i->tcpi_busy_time));
-	json_object_object_add(ret, "tcpi_rwnd_limited", json_object_new_int64((int64_t)i->tcpi_rwnd_limited));
-	json_object_object_add(ret, "tcpi_sndbuf_limited", json_object_new_int64((int64_t)i->tcpi_sndbuf_limited));
-#endif
-
-	return ret;
+json_object *get_stats_as_json_array(StatsThreadArg* e) {
+	json_object *arr = json_object_new_array();
+	for (size_t i = 0; i < e->length; i++) {
+		StatsThreadEntry *ste = &e->entries[i];
+		for (size_t j = 0; j < ste->tcp_infos_length; j++) {
+			json_object *obj = get_tcp_info_entry_as_json_object(&ste->tcp_infos[j]);
+			json_object_object_add(obj, "flow_id", json_object_new_int64((int64_t)i));
+			json_object_array_add(arr, obj);
+		}
+	}
+	return arr;
 }
 
-json_object *read_tcp_info(int sfd) {
-	struct tcp_info info = { 0 };
-	socklen_t info_len = sizeof(info);
-	if (getsockopt(sfd, IPPROTO_TCP, TCP_INFO, &info, &info_len) != 0)
-		return NULL;
-	return tcp_info_to_json(&info);
+//static json_object *read_tcp_info_json(int sfd) {
+//	struct rmbt_tcp_info info = { 0 };
+//	socklen_t info_len = sizeof(info);
+//	if (getsockopt(sfd, IPPROTO_TCP, TCP_INFO, &info, &info_len) != 0)
+//		return NULL;
+//	return tcp_info_to_json(&info, info_len);
+//}
+
+//static void json_add_tcp_info(int sfd, json_object *array) {
+//	json_object_array_add(array, read_tcp_info_json(sfd));
+//}
+//
+//static void print_tcp_info(int sfd, FILE *f) {
+//	fprintf(f, "%s\n", json_object_to_json_string_ext(read_tcp_info_json(sfd), JSON_C_TO_STRING_PRETTY));
+//}
+
+static void rmbt_add_tcp_info(StatsThreadEntry *e) {
+	/* make sure there is enough space */
+	if (e->tcp_infos_length >= e->tcp_infos_size) {
+		e->tcp_infos_size += RMBT_STATS_INCREMENT;
+		e->tcp_infos = realloc(e->tcp_infos, e->tcp_infos_size * sizeof(TcpInfoEntry));
+		memset(&e->tcp_infos[e->tcp_infos_length], 0, (e->tcp_infos_size - e->tcp_infos_length) * sizeof(TcpInfoEntry));
+	}
+	e->tcp_infos[e->tcp_infos_length].ts = ts_diff(stats_arg->ts_zero);
+	struct rmbt_tcp_info *info = &e->tcp_infos[e->tcp_infos_length].tcp_info;
+	e->tcp_infos[e->tcp_infos_length].tcp_info_length = sizeof(struct rmbt_tcp_info);
+	if (getsockopt(e->sfd, IPPROTO_TCP, TCP_INFO, info, &e->tcp_infos[e->tcp_infos_length].tcp_info_length) == 0)
+		e->tcp_infos_length++;
 }
 
-void add_tcp_info(int sfd, json_object *array) {
-	json_object_array_add(array, read_tcp_info(sfd));
+void stats_thread_set_sfd(int_fast16_t tid, int sfd) {
+	pthread_mutex_lock(&stats_mtx);
+	while (stats_arg == NULL)
+		pthread_cond_wait(&stats_cnd, &stats_mtx);
+	if (tid < (int_fast16_t)stats_arg->length)
+		stats_arg->entries[tid].sfd = sfd;
+	pthread_mutex_unlock(&stats_mtx);
 }
 
-void print_tcp_info(int sfd, FILE *f) {
-	fprintf(f, "%s\n", json_object_to_json_string_ext(read_tcp_info(sfd), JSON_C_TO_STRING_PRETTY));
+void *stats_thread_start(void *arg) {
+	pthread_mutex_lock(&stats_mtx);
+	stats_arg = ((StatsThreadArg *) arg);
+	for (size_t i = 0; i < stats_arg->length; i++)
+		stats_arg->entries[i].sfd = -1;
+	pthread_cond_broadcast(&stats_cnd);
+	pthread_mutex_unlock(&stats_mtx);
+
+	const struct timespec sleep_time = { .tv_sec = 0, .tv_nsec = 100000000L }; // 100ms
+	while(true) { // thread will be canceled; clock_nanosleep is a cancellation point
+		pthread_mutex_lock(&stats_mtx);
+		for (size_t i = 0; i < stats_arg->length; i++) {
+			int sfd = stats_arg->entries[i].sfd;
+			if (sfd >= 0)
+				rmbt_add_tcp_info(&stats_arg->entries[i]);
+		}
+		pthread_mutex_unlock(&stats_mtx);
+		int r = clock_nanosleep(CLOCK_REALTIME, 0, &sleep_time, NULL);
+		if (r != 0)
+			pthread_exit(NULL);
+	}
 }
-
-#endif /* __linux__ */
-

@@ -25,6 +25,7 @@
 #include "rmbt_token.h"
 #include "rmbt_flow.h"
 #include "rmbt_ssl.h"
+#include "rmbt_stats.h"
 
 #define MAX_TO_FREE 64
 
@@ -114,6 +115,7 @@ static void read_config(TestConfig *c, json_object *json) {
 
 	my_json_get_string(&c->file_summary, json, "cnf_file_summary");
 	my_json_get_string(&c->file_flows, json, "cnf_file_flows");
+	my_json_get_string(&c->file_stats, json, "cnf_file_stats");
 }
 
 static char *read_stdin(void) {
@@ -138,7 +140,7 @@ static char *read_stdin(void) {
 }
 
 int main(int argc, char **argv) {
-	TestConfig config = { .token = 0 };
+	TestConfig config = { 0 };
 
 	struct sigaction action = { .sa_handler = SIG_IGN };
 	if (sigaction(SIGPIPE, &action, NULL) != 0)
@@ -282,11 +284,16 @@ int main(int argc, char **argv) {
 	if (config.ul_num_flows > num_threads)
 		num_threads = config.ul_num_flows;
 	pthread_barrier_t barrier;
-	pthread_barrier_init(&barrier, NULL, (unsigned int) num_threads);
+	r = pthread_barrier_init(&barrier, NULL, (unsigned int) num_threads);
+	if (r != 0)
+		fail_errno(r, "could not pthread_barrier_init");
 
 	ThreadArg thread_arg[num_threads];
+	memset(thread_arg, 0, sizeof(thread_arg));
 	FlowResult flow_results[num_threads];
 	memset(flow_results, 0, sizeof(flow_results));
+	StatsThreadEntry stats_entries[num_threads];
+	memset(stats_entries, 0, sizeof(stats_entries));
 
 	result.time_start_s = time(NULL);
 
@@ -303,12 +310,29 @@ int main(int argc, char **argv) {
 		thread_arg[t].do_rtt_tcp_payload = t == 0;
 		thread_arg[t].do_downlink = t < config.dl_num_flows;
 		thread_arg[t].do_uplink = t < config.ul_num_flows;
-		pthread_create(&thread_arg[t].thread, NULL, &run_test_thread_start, &thread_arg[t]);
+		r = pthread_create(&thread_arg[t].thread, NULL, &run_test_thread_start, &thread_arg[t]);
+		if (r != 0)
+			fail_errno(r, "could not create thread");
 	}
 
+	StatsThreadArg starg = { .ts_zero = &ts_zero, .length = (size_t)num_threads, .entries = stats_entries };
+	pthread_t stats_thread;
+	r = pthread_create(&stats_thread, NULL, &stats_thread_start, &starg);
+	if (r != 0)
+		fail_errno(r, "could not create stats thread");
+
 	for (int_fast16_t t = 0; t < num_threads; t++) {
-		pthread_join(thread_arg[t].thread, NULL);
+		r = pthread_join(thread_arg[t].thread, NULL);
+		if (r != 0)
+			fail_errno(r, "could not join thread");
 	}
+
+	r = pthread_cancel(stats_thread);
+	if (r != 0)
+		fail_errno(r, "could not cancel stats thread");
+	r = pthread_join(stats_thread, NULL);
+	if (r != 0)
+		fail_errno(r, "could not join stats thread");
 
 	pthread_barrier_destroy(&barrier);
 
@@ -323,7 +347,9 @@ int main(int argc, char **argv) {
 	flatten_json_object_to_object(result_json, add_to_result);
 	printf("%s\n", json_object_to_json_string_ext(result_json, JSON_C_TO_STRING_PRETTY));
 
-	const char *replacements[] = { "id_test", result.id_test, "time", time_str };
+	const char *replacements[] = { \
+			"id_test", result.id_test, \
+			"time", time_str };
 	size_t num_replacements = sizeof(replacements) / sizeof(char*) / 2;
 
 	char buf[512];
@@ -346,18 +372,33 @@ int main(int argc, char **argv) {
 			perror("could not open file for raw results");
 		else {
 			json_object *raw_result_json = collect_raw_results(&result, flow_results, num_threads);
-			flatten_json_object_to_object(result_json, add_to_result);
+			flatten_json_object_to_object(raw_result_json, add_to_result);
 			fprintf(f, "%s\n", json_object_to_json_string_ext(raw_result_json, JSON_C_TO_STRING_PLAIN));
 			json_object_put(raw_result_json);
 			fclose(f);
 		}
 	}
 
+	if (config.file_stats != NULL) {
+			bool ok = variable_subst(buf, sizeof(buf), config.file_stats, replacements, num_replacements);
+			FILE *f = fopen(ok ? buf : config.file_stats, "w");
+			if (f == NULL)
+				perror("could not open file for stats results");
+			else {
+				json_object *stats_json = get_stats_as_json_array(&starg);
+				fprintf(f, "%s\n", json_object_to_json_string_ext(stats_json, JSON_C_TO_STRING_PLAIN));
+				json_object_put(stats_json);
+				fclose(f);
+			}
+		}
+
 	if (add_to_result != NULL)
 		json_object_put(add_to_result);
 
 	shutdown_ssl();
 
+	for (int_fast16_t t = 0; t < num_threads; t++)
+		free(stats_entries[t].tcp_infos);
 	do_free_flow_results(flow_results, num_threads);
 	do_free();
 
