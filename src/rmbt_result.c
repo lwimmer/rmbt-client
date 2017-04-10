@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "rmbt_config.h"
+#include "rmbt_stats.h"
 
 #define SUCCESS		"success"
 #define FAIL		"fail_"
@@ -63,7 +64,6 @@ static json_object *time_series_to_json_array(DataPoint data_points[], int_fast3
 
 json_object *directionresult_to_json_obj(DirectionResult *direction_result) {
 	json_object *result_json = json_object_new_object();
-//	json_object_object_add(result_json, "chunksize", json_object_new_int64(direction_result->connection_info.chunksize));
 	json_object_object_add(result_json, "time_start_rel_ns", json_object_new_int64(direction_result->time_start_rel_ns));
 	json_object_object_add(result_json, "time_end_rel_ns", json_object_new_int64(direction_result->time_end_rel_ns));
 	if (direction_result->duration_server_ns != 0)
@@ -232,16 +232,18 @@ static void add_common_results(Result *result, json_object *result_json) {
 		json_object_object_add(result_json, "res_encrypt", json_object_new_boolean(result->connection_info->encrypt));
 		if (result->connection_info->cipher != NULL)
 			json_object_object_add(result_json, "res_cipher", json_object_new_string(result->connection_info->cipher));
-		else
-			json_object_object_add(result_json, "res_cipher", NULL);
 		if (result->connection_info->chunksize > 0)
 			json_object_object_add(result_json, "res_chunksize", json_object_new_int64(result->connection_info->chunksize));
+		if (result->connection_info->tcp_congestion != NULL)
+			json_object_object_add(result_json, "res_tcp_congestion", json_object_new_string(result->connection_info->tcp_congestion));
 	}
 
 	if (result->total_bytes_dl > 0)
 		json_object_object_add(result_json, "res_total_bytes_dl", json_object_new_int64(result->total_bytes_dl));
 	if (result->total_bytes_ul > 0)
 		json_object_object_add(result_json, "res_total_bytes_ul", json_object_new_int64(result->total_bytes_ul));
+
+	json_object_object_add(result_json, "res_utsname", get_utsname());
 }
 
 json_object *collect_summary_results(Result *result) {
@@ -350,6 +352,7 @@ void do_free_flow_results(FlowResult *flow_results, int_fast16_t num_flow_result
 	for (int_fast16_t i = 0; i < num_flow_results; i++) {
 		FlowResult *flow_result = flow_results + i;
 
+		FREE_AND_SET_NULL(flow_result->connection_info.tcp_congestion);
 		FREE_AND_SET_NULL(flow_result->connection_info.tls_debug);
 		FREE_AND_SET_NULL(flow_result->pretest_dl.time_series);
 		FREE_AND_SET_NULL(flow_result->dl.time_series);

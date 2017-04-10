@@ -28,6 +28,7 @@
 
 #include "rmbt_helper.h"
 #include "rmbt_ssl.h"
+#include "rmbt_stats.h"
 
 #define MAX_CHUNKSIZE	65536
 #define DATAPOINT_INCREMENT_PRETEST 32
@@ -589,6 +590,14 @@ static bool connect_to_server(State *s) {
 
 	s->socket_fd = sfd;
 
+	char buf[64];
+	socklen_t buf_len = sizeof(buf);
+	if (getsockopt(sfd, 6, TCP_CONGESTION, &buf, &buf_len) == 0)
+		if (asprintf(&s->targ->flow_result->connection_info.tcp_congestion, "%s", buf) <= 0)
+			s->targ->flow_result->connection_info.tcp_congestion = NULL;
+
+	set_low_delay(s);
+
 	if (s->config->encrypt) {
 
 		pthread_mutex_lock(&ssl_ctx_mutex);
@@ -654,8 +663,6 @@ static bool connect_to_server(State *s) {
 		inet_ntop(addr.ss_family, ip_addr, s->targ->flow_result->connection_info.ip_server, sizeof(s->targ->flow_result->connection_info.ip_server));
 		s->targ->flow_result->connection_info.port_server = ntohs(port);
 	}
-
-	set_low_delay(s);
 
 	return ok;
 }
@@ -1096,6 +1103,8 @@ static bool run_test(State *s) {
 	if (!ok)
 		return false;
 
+	print_tcp_info(s->socket_fd, stderr);
+
 	barrier_wait(s);
 	my_log(s, "connected with %" PRIuFAST16 " flow(s) for dl; %" PRIuFAST16 " flow(s) for ul", s->config->dl_num_flows, s->config->ul_num_flows);
 
@@ -1154,6 +1163,8 @@ static bool run_test(State *s) {
 		barrier_wait(s); // there is a barrier_wait in do_uplink
 	barrier_wait(s);
 	my_log(s, "uplink test end.");
+
+	print_tcp_info(s->socket_fd, stderr);
 
 	/* end */
 	set_phase(s, PH_end);

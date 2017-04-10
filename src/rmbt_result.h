@@ -40,6 +40,7 @@ typedef enum {
 
 typedef struct {
 	const char *cipher;
+	char *tcp_congestion;
 	char *tls_debug;
 	int_fast32_t chunksize;
 	int_fast16_t port_local, port_server;
