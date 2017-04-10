@@ -54,7 +54,7 @@ void print_tcp_info(int sfd, FILE *f) {
 #include <sys/socket.h>
 #include <linux/tcp.h>
 #include <linux/version.h>
-
+#include <netinet/in.h>
 
 static json_object *tcp_info_to_json(struct tcp_info *i) {
 	json_object *ret = json_object_new_object();
@@ -142,7 +142,7 @@ static json_object *tcp_info_to_json(struct tcp_info *i) {
 json_object *read_tcp_info(int sfd) {
 	struct tcp_info info;
 	socklen_t info_len = sizeof(info);
-	if (getsockopt(sfd, 6, TCP_INFO, &info, &info_len) != 0)
+	if (getsockopt(sfd, IPPROTO_TCP, TCP_INFO, &info, &info_len) != 0)
 		return NULL;
 	return tcp_info_to_json(&info);
 }

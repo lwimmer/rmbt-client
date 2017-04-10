@@ -186,11 +186,11 @@ static inline bool barrier_wait(State *s) {
 }
 
 static inline void set_nodelay(State *s, int value) {
-	setsockopt(s->socket_fd, SOL_TCP, TCP_NODELAY, &value, sizeof(value));
+	setsockopt(s->socket_fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value));
 }
 
 static inline void set_cork(State *s, int value) {
-	setsockopt(s->socket_fd, SOL_TCP, TCP_CORK, &value, sizeof(value));
+	setsockopt(s->socket_fd, IPPROTO_TCP, TCP_CORK, &value, sizeof(value));
 }
 
 static inline void set_throughput(State *s) {
