@@ -34,6 +34,8 @@ json_object *get_utsname(void) {
 
 #ifndef __linux__
 
+/* tcp_info is available on FreeBSD and possibly others, but we do not support it currently */
+
 #pragma GCC diagnostic push  // require GCC 4.6
 #pragma GCC diagnostic ignored "-Wunused-parameter" // json_object_object_foreachC otherwise leads to warnings
 json_object *read_tcp_info(int sfd) {
@@ -140,7 +142,7 @@ static json_object *tcp_info_to_json(struct tcp_info *i) {
 }
 
 json_object *read_tcp_info(int sfd) {
-	struct tcp_info info;
+	struct tcp_info info = { 0 };
 	socklen_t info_len = sizeof(info);
 	if (getsockopt(sfd, IPPROTO_TCP, TCP_INFO, &info, &info_len) != 0)
 		return NULL;

@@ -83,6 +83,10 @@
 #define NEED_POLL_WRITE	-3
 #define IS_NEED_POLL(x) (x == NEED_POLL_READ || x == NEED_POLL_WRITE)
 
+#if !defined(TCP_CORK) && defined(TCP_NOPUSH) /* hack for now to make it work on *BSD */
+#define TCP_CORK TCP_NOPUSH
+#endif
+
 typedef uint_fast16_t Mask;
 
 typedef struct {
