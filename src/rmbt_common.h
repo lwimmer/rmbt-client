@@ -17,7 +17,13 @@
 #ifndef SRC_RMBT_COMMON_H_
 #define SRC_RMBT_COMMON_H_
 
-#define _GNU_SOURCE
+#if HAVE_CONFIG_H
+# include <config.h>
+#endif
+
+#ifndef _GNU_SOURCE
+# define _GNU_SOURCE 1
+#endif
 // #define _POSIX_C_SOURCE 200809L
 // #define _ISOC11_SOURCE
 /* #define _BSD_SOURCE */

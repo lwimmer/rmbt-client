@@ -9,3 +9,26 @@ core
 *.swp
 *~
 tmp/
+
+
+# autotools
+Makefile
+Makefile.in
+aclocal.m4
+aclocal.m4.bak
+autom4te.cache
+compile
+.deps
+configure
+config.cache
+config.guess
+config.log
+config.status
+config.sub
+install-sh
+depcomp
+missing
+config.h
+config.h.in
+stamp-h1
+*.tar.gz
