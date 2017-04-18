@@ -1,4 +1,4 @@
-rmbt-client -- RMBT measurement client in C
+rmbt-client - RMBT speed measurement client in C
 ===========
 
 For more information and the server code see also https://github.com/alladin-IT/open-rmbt
@@ -32,9 +32,9 @@ yum install git autoconf automake make gcc json-c-devel openssl-devel libuuid-de
 To build simply run:
 
 ```
-$ git clone https://github.com/lwimmer/rmbt-client
-$ cd rmbt-client
-$ ./autobuild.sh
+git clone https://github.com/lwimmer/rmbt-client
+cd rmbt-client
+./autobuild.sh
 ```
 
 To install run:
@@ -73,4 +73,4 @@ A minimum configuration file could look something like this:
 }
 ```
 
-For more information see the file `config.example.json`.
+For more information see the file [`config.example.json`](config.example.json).
