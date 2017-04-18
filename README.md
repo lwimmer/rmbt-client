@@ -1,35 +1,32 @@
-rmbt-client
+rmbt-client -- RMBT measurement client in C
 ===========
-
-RMBT measurement client in C
-----------------------------
-This code is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
 
 For more information and the server code see also https://github.com/alladin-IT/open-rmbt
 
+This code is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
 
 Building
 --------
 
-rmbt-client needs the following libraries:
+rmbt-client has the following requirements:
 
+* `autoconf`, `automake`, `make`
 * `gcc`, `clang` or another C compiler
-* `make`
 * `libuuid`
-* `libssl` / `libcrypto`
+* `libssl`, `libcrypto`
 * `libjson-c`
 * (`git`)
 
 To install the required build dependencies on `apt` based distos (Debian, Ubuntu, ...) run:
 
 ```
-sudo apt install build-essential pkg-config libjson-c-dev libssl-dev uuid-dev
+sudo apt install libc-dev git autoconf automake make gcc pkg-config libjson-c-dev libssl-dev uuid-dev
 ```
 
 For `yum` based distros (CentOS, Fedora, ...) this should work:
 
 ```
-yum install make gcc json-c-devel openssl-devel libuuid-devel
+yum install git autoconf automake make gcc json-c-devel openssl-devel libuuid-devel
 ```
 
 To build simply run:
@@ -37,7 +34,12 @@ To build simply run:
 ```
 $ git clone https://github.com/lwimmer/rmbt-client
 $ cd rmbt-client
-$ make
+$ ./autobuild.sh
+```
+
+To install run:
+```
+make install
 ```
 
 Running
