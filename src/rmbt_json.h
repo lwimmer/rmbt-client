@@ -50,6 +50,7 @@ void rmbt_json_get_bool(bool *dst, rmbt_json json, const char *key);
 bool rmbt_json_get_object(rmbt_json *dst, rmbt_json json, const char *key);
 
 void rmbt_json_get_int_fast16_t(int_fast16_t *dst, rmbt_json json, const char *key);
+void rmbt_json_get_int_fast32_t(int_fast32_t *dst, rmbt_json json, const char *key);
 
 uint32_t rmbt_json_array_length(rmbt_json_array array);
 

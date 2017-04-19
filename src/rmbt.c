@@ -98,6 +98,7 @@ static void read_config(TestConfig *c, rmbt_json json) {
 	rmbt_json_get_int_fast16_t(&c->ul_pretest_duration_s, json, "cnf_ul_pretest_duration_s");
 	rmbt_json_get_int_fast16_t(&c->dl_wait_time_s, json, "cnf_dl_wait_time_s");
 	rmbt_json_get_int_fast16_t(&c->ul_wait_time_s, json, "cnf_ul_wait_time_s");
+	rmbt_json_get_int_fast32_t(&c->tcp_info_sample_rate_us, json, "cnf_tcp_info_sample_rate_us");
 
 	my_json_get_string(&c->file_summary, json, "cnf_file_summary");
 	my_json_get_string(&c->file_flows, json, "cnf_file_flows");
@@ -302,11 +303,15 @@ int main(int argc, char **argv) {
 			fail_errno(r, "could not create thread");
 	}
 
-	StatsThreadArg starg = { .ts_zero = &ts_zero, .length = (size_t)num_threads, .entries = stats_entries };
 	pthread_t stats_thread;
-	r = pthread_create(&stats_thread, NULL, &stats_thread_start, &starg);
-	if (r != 0)
-		fail_errno(r, "could not create stats thread");
+	StatsThreadArg starg = { .ts_zero = &ts_zero, .length = (size_t)num_threads, .entries = stats_entries, .tcp_info_sample_rate_us = config.tcp_info_sample_rate_us };
+	if (config.tcp_info_sample_rate_us > 0) {
+		stats_set_arg(&starg);
+		fprintf(stderr, "starting stats thread (sampling rate: % "PRIdFAST32 "us)\n", config.tcp_info_sample_rate_us);
+		r = pthread_create(&stats_thread, NULL, &stats_thread_start, NULL);
+		if (r != 0)
+			fail_errno(r, "could not create stats thread");
+	}
 
 	for (int_fast16_t t = 0; t < num_threads; t++) {
 		r = pthread_join(thread_arg[t].thread, NULL);
@@ -314,12 +319,15 @@ int main(int argc, char **argv) {
 			fail_errno(r, "could not join thread");
 	}
 
-	r = pthread_cancel(stats_thread);
-	if (r != 0)
-		fail_errno(r, "could not cancel stats thread");
-	r = pthread_join(stats_thread, NULL);
-	if (r != 0)
-		fail_errno(r, "could not join stats thread");
+	if (config.tcp_info_sample_rate_us > 0) {
+		fprintf(stderr, "stopping stats thread\n");
+		r = pthread_cancel(stats_thread);
+		if (r != 0)
+			fail_errno(r, "could not cancel stats thread");
+		r = pthread_join(stats_thread, NULL);
+		if (r != 0)
+			fail_errno(r, "could not join stats thread");
+	}
 
 	pthread_barrier_destroy(&barrier);
 

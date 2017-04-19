@@ -16,9 +16,10 @@
   "cnf_ul_pretest_duration_s": 2,
   "cnf_dl_wait_time_s": 30,
   "cnf_ul_wait_time_s": 30,
+  "cnf_tcp_info_sample_rate_us": 0,
   "cnf_file_summary": "{time}_{id_test}_summary.json",
-  "cnf_file_flows": "{time}_{id_test}_flows.json",
-  "cnf_file_stats": "{time}_{id_test}_stats.json",
+  "cnf_file_flows": "{time}_{id_test}_flows.json.xz",
+  "cnf_file_stats": "{time}_{id_test}_stats.json.xz",
   "cnf_add_to_result": {
   }
 }

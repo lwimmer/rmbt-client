@@ -28,7 +28,6 @@
 #define RMBT_STATS_INCREMENT	512
 
 static pthread_mutex_t stats_mtx = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t stats_cnd = PTHREAD_COND_INITIALIZER;
 static StatsThreadArg *stats_arg = NULL;
 
  void get_uname(rmbt_json obj) {
@@ -157,22 +156,23 @@ static void rmbt_add_tcp_info(StatsThreadEntry *e) {
 
 void stats_thread_set_sfd(int_fast16_t tid, int sfd) {
 	pthread_mutex_lock(&stats_mtx);
-	while (stats_arg == NULL)
-		pthread_cond_wait(&stats_cnd, &stats_mtx);
-	if (tid < (int_fast16_t)stats_arg->length)
+	if (stats_arg != NULL && tid < (int_fast16_t)stats_arg->length)
 		stats_arg->entries[tid].sfd = sfd;
 	pthread_mutex_unlock(&stats_mtx);
 }
 
-void *stats_thread_start(void *arg) {
+void stats_set_arg(StatsThreadArg *arg) {
 	pthread_mutex_lock(&stats_mtx);
-	stats_arg = ((StatsThreadArg *) arg);
+	stats_arg = arg;
 	for (size_t i = 0; i < stats_arg->length; i++)
 		stats_arg->entries[i].sfd = -1;
-	pthread_cond_broadcast(&stats_cnd);
 	pthread_mutex_unlock(&stats_mtx);
+}
 
-	const struct timespec sleep_time = { .tv_sec = 0, .tv_nsec = 100000000L }; // 100ms
+void *stats_thread_start(__attribute__((unused)) void *arg) {
+	struct timespec sleep_time;
+	sleep_time.tv_sec = stats_arg->tcp_info_sample_rate_us / 1000000;
+	sleep_time.tv_nsec = stats_arg->tcp_info_sample_rate_us % 1000000 * 1000;
 	while(true) { // thread will be canceled; clock_nanosleep is a cancellation point
 		pthread_mutex_lock(&stats_mtx);
 		for (size_t i = 0; i < stats_arg->length; i++) {

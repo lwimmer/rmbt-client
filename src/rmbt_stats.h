@@ -123,10 +123,12 @@ typedef struct {
 	struct timespec *ts_zero;
 	StatsThreadEntry *entries;
 	size_t length;
+	int_fast32_t tcp_info_sample_rate_us;
 } StatsThreadArg;
 
 void get_uname(rmbt_json obj);
 
+void stats_set_arg(StatsThreadArg *arg);
 rmbt_json_array get_stats_as_json_array(StatsThreadArg* e);
 void stats_thread_set_sfd(int_fast16_t tid, int sfd);
 void *stats_thread_start(void *arg) __attribute__ ((noreturn));

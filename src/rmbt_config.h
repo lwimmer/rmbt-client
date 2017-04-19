@@ -34,7 +34,8 @@
   \"cnf_dl_pretest_duration_s\": 2, \n\
   \"cnf_ul_pretest_duration_s\": 2, \n\
   \"cnf_dl_wait_time_s\": 30, \n\
-  \"cnf_ul_wait_time_s\": 30 \n\
+  \"cnf_ul_wait_time_s\": 30, \n\
+  \"cnf_tcp_info_sample_rate_ns\": 0 \n\
 }"
 
 #endif /* SRC_RMBT_CONFIG_H_ */
