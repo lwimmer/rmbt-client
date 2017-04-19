@@ -6,6 +6,7 @@ core
 .settings
 .project
 .cproject
+.autotools
 *.swp
 *~
 tmp/

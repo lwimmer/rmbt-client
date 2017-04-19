@@ -17,10 +17,11 @@
 #ifndef SRC_RMBT_RESULT_H_
 #define SRC_RMBT_RESULT_H_
 
-#include <json.h>
 #include <arpa/inet.h>
 #include <stdbool.h>
 #include <time.h>
+
+#include "rmbt_json.h"
 
 #define FOREACH_PHASE(PHASE) \
         PHASE(init)   \
@@ -101,15 +102,14 @@ typedef struct {
 	char error[512];
 } FlowResult;
 
-json_object *rtt_tcp_payloads_to_json_array(RttTcpPayload *rtt_tcp_payloads, int_fast16_t rtt_tcp_payload_num);
-void add_datapoint_to_array(json_object *array, DataPoint data_point);
-json_object *directionresult_to_json_obj(DirectionResult *direction_result);
+rmbt_json_array rtt_tcp_payloads_to_json_array(RttTcpPayload *rtt_tcp_payloads, int_fast16_t rtt_tcp_payload_num);
+void add_datapoint_to_array(rmbt_json array, DataPoint data_point);
+rmbt_json directionresult_to_json_obj(DirectionResult *direction_result);
 
 void calc_results(Result *result, FlowResult *flow_results, int_fast16_t num_flow_results);
 
-json_object *collect_summary_results(Result *result);
-json_object *collect_raw_results(Result *result, FlowResult *flow_results, int_fast16_t num_flow_results);
-void flatten_json_object_to_object(json_object *dst, json_object *src);
+rmbt_json collect_summary_results(Result *result);
+rmbt_json collect_raw_results(Result *result, FlowResult *flow_results, int_fast16_t num_flow_results);
 void do_free_flow_results(FlowResult *flow_results, int_fast16_t num_flow_results);
 
 #endif /* SRC_RMBT_RESULT_H_ */

@@ -19,8 +19,9 @@
 
 #include "rmbt_common.h"
 
-#include <json.h>
 #include <stdatomic.h>
+
+#include "rmbt_json.h"
 
 /*
  * We use our own version of tcp_info, as we might run on a kernel that is more recent
@@ -100,10 +101,10 @@ struct rmbt_tcp_info {
  * (i.e. kernel supports it) */
 #define	IS_IN_RMBT_TCP_INFO(len, m)	(offsetof(struct rmbt_tcp_info, m) + sizeof(((struct rmbt_tcp_info *)0)->m) <= len)
 #define JSON_ADD_OBJ_TCP_INFO(len, obj, m)	if (IS_IN_RMBT_TCP_INFO(len, m)) { \
-		json_object_object_add(obj, #m, json_object_new_int64((int64_t)i->m)); }
+		rmbt_json_add_int64(obj, #m, (int64_t)i->m); }
 #define JSON_ADD_OBJ_TCP_INFO_BITFIELD(len, obj, m, next_memb)	\
 		if (offsetof(struct rmbt_tcp_info, next_memb) <= len) { \
-		json_object_object_add(obj, #m, json_object_new_int64((int64_t)i->m)); }
+			rmbt_json_add_int64(obj, #m, (int64_t)i->m); }
 
 typedef struct {
 	int_fast64_t ts;
@@ -124,9 +125,9 @@ typedef struct {
 	size_t length;
 } StatsThreadArg;
 
-void get_uname(json_object *obj);
+void get_uname(rmbt_json obj);
 
-json_object *get_stats_as_json_array(StatsThreadArg* e);
+rmbt_json_array get_stats_as_json_array(StatsThreadArg* e);
 void stats_thread_set_sfd(int_fast16_t tid, int sfd);
 void *stats_thread_start(void *arg) __attribute__ ((noreturn));
 

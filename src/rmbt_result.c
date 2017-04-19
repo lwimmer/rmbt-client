@@ -29,46 +29,46 @@
 
 static const char *PHASE_STRING[] = { FOREACH_PHASE(GENERATE_STRING) };
 
-json_object *rtt_tcp_payloads_to_json_array(RttTcpPayload rtt_tcp_payloads[], int_fast16_t rtt_tcp_payload_num) {
-	json_object *result = json_object_new_array();
+rmbt_json_array rtt_tcp_payloads_to_json_array(RttTcpPayload rtt_tcp_payloads[], int_fast16_t rtt_tcp_payload_num) {
+	rmbt_json_array result = rmbt_json_new_array();
 	for (int_fast16_t i = 0; i < rtt_tcp_payload_num; i++) {
-		json_object *point = json_object_new_object();
-		json_object_object_add(point, "time_start_rel_ns", json_object_new_int64((*(rtt_tcp_payloads + i)).time_start_rel_ns));
-		json_object_object_add(point, "rtt_server_ns", json_object_new_int64((int64_t) (*(rtt_tcp_payloads + i)).rtt_server_ns));
-		json_object_object_add(point, "rtt_client_ns", json_object_new_int64((*(rtt_tcp_payloads + i)).rtt_client_ns));
-		json_object_object_add(point, "time_end_rel_ns", json_object_new_int64((*(rtt_tcp_payloads + i)).time_end_rel_ns));
-		json_object_array_add(result, point);
+		rmbt_json point = rmbt_json_new();
+		rmbt_json_add_int64(point, "time_start_rel_ns", (*(rtt_tcp_payloads + i)).time_start_rel_ns);
+		rmbt_json_add_int64(point, "rtt_server_ns", (int64_t) (*(rtt_tcp_payloads + i)).rtt_server_ns);
+		rmbt_json_add_int64(point, "rtt_client_ns", (*(rtt_tcp_payloads + i)).rtt_client_ns);
+		rmbt_json_add_int64(point, "time_end_rel_ns", (*(rtt_tcp_payloads + i)).time_end_rel_ns);
+		rmbt_json_add_to_array(result, point);
 	}
 	return result;
 }
 
-static json_object *time_series_to_json_array(DataPoint data_points[], int_fast32_t num_data_points) {
-	struct json_object *result = json_object_new_array();
+static rmbt_json_array time_series_to_json_array(DataPoint data_points[], int_fast32_t num_data_points) {
+	rmbt_json_array result = rmbt_json_new_array();
 	for (int_fast32_t i = 0; i < num_data_points; i++) {
 		DataPoint data_point = *(data_points + i);
-		json_object *point = json_object_new_object();
+		rmbt_json point = rmbt_json_new();
 		if (data_point.time_ns_end == 0) {
-			json_object_object_add(point, "t", json_object_new_int64(data_point.time_ns));
-			json_object_object_add(point, "b", json_object_new_int64(data_point.bytes));
+			rmbt_json_add_int64(point, "t", data_point.time_ns);
+			rmbt_json_add_int64(point, "b", data_point.bytes);
 		} else {
-			json_object_object_add(point, "t_begin", json_object_new_int64(data_point.time_ns));
-			json_object_object_add(point, "b", json_object_new_int64(data_point.bytes));
-			json_object_object_add(point, "t_end", json_object_new_int64(data_point.time_ns_end));
+			rmbt_json_add_int64(point, "t_begin", data_point.time_ns);
+			rmbt_json_add_int64(point, "b", data_point.bytes);
+			rmbt_json_add_int64(point, "t_end", data_point.time_ns_end);
 		}
 		if (data_point.duration_server != 0)
-			json_object_object_add(point, "d_server", json_object_new_int64(data_point.duration_server));
-		json_object_array_add(result, point);
+			rmbt_json_add_int64(point, "d_server", data_point.duration_server);
+		rmbt_json_add_to_array(result, point);
 	}
 	return result;
 }
 
-json_object *directionresult_to_json_obj(DirectionResult *direction_result) {
-	json_object *result_json = json_object_new_object();
-	json_object_object_add(result_json, "time_start_rel_ns", json_object_new_int64(direction_result->time_start_rel_ns));
-	json_object_object_add(result_json, "time_end_rel_ns", json_object_new_int64(direction_result->time_end_rel_ns));
+rmbt_json directionresult_to_json_obj(DirectionResult *direction_result) {
+	rmbt_json result_json = rmbt_json_new();
+	rmbt_json_add_int64(result_json, "time_start_rel_ns", direction_result->time_start_rel_ns);
+	rmbt_json_add_int64(result_json, "time_end_rel_ns", direction_result->time_end_rel_ns);
 	if (direction_result->duration_server_ns != 0)
-		json_object_object_add(result_json, "duration_server_ns", json_object_new_int64(direction_result->duration_server_ns));
-	json_object_object_add(result_json, "time_series", time_series_to_json_array(direction_result->time_series, direction_result->num_time_series));
+		rmbt_json_add_int64(result_json, "duration_server_ns", direction_result->duration_server_ns);
+	rmbt_json_add_array(result_json, "time_series", time_series_to_json_array(direction_result->time_series, direction_result->num_time_series));
 	return result_json;
 }
 
@@ -206,123 +206,122 @@ void calc_results(Result *result, FlowResult *flow_results, int_fast16_t num_flo
 	}
 }
 
-static void add_common_results(Result *result, json_object *result_json) {
+static void add_common_results(Result *result, rmbt_json result_json) {
 
 	if (result->id_test != NULL)
-		json_object_object_add(result_json, "res_id_test", json_object_new_string(result->id_test));
-	json_object_object_add(result_json, "res_time_start_s", json_object_new_int64(result->time_start_s));
-	json_object_object_add(result_json, "res_time_end_s", json_object_new_int64(result->time_end_s));
+		rmbt_json_add_string(result_json, "res_id_test", result->id_test);
+	rmbt_json_add_int64(result_json, "res_time_start_s", result->time_start_s);
+	rmbt_json_add_int64(result_json, "res_time_end_s", result->time_end_s);
 	if (result->error == NULL) {
-		json_object_object_add(result_json, "res_status", json_object_new_string(SUCCESS));
+		rmbt_json_add_string(result_json, "res_status", SUCCESS);
 	} else {
 		char status[sizeof(result->error) + strlen(FAIL)];
 		snprintf(status, sizeof(status), "%s%s", FAIL, PHASE_STRING[result->last_phase]);
-		json_object_object_add(result_json, "res_status", json_object_new_string(status));
-		json_object_object_add(result_json, "res_status_msg", json_object_new_string(result->error));
+		rmbt_json_add_string(result_json, "res_status", status);
+		rmbt_json_add_string(result_json, "res_status_msg", result->error);
 	}
-	json_object_object_add(result_json, "res_version_client", json_object_new_string(RMBT_VERSION));
+	rmbt_json_add_string(result_json, "res_version_client", RMBT_VERSION);
 
 	if (result->connection_info != NULL) {
 		if (strlen(result->connection_info->server_version) > 0)
-			json_object_object_add(result_json, "res_version_server", json_object_new_string(result->connection_info->server_version));
+			rmbt_json_add_string(result_json, "res_version_server", result->connection_info->server_version);
 		if (strlen(result->connection_info->ip_server) > 0)
-			json_object_object_add(result_json, "res_server_ip", json_object_new_string(result->connection_info->ip_server));
+			rmbt_json_add_string(result_json, "res_server_ip", result->connection_info->ip_server);
 		if (result->connection_info->port_server != 0)
-			json_object_object_add(result_json, "res_server_port", json_object_new_int64(result->connection_info->port_server));
-		json_object_object_add(result_json, "res_encrypt", json_object_new_boolean(result->connection_info->encrypt));
+			rmbt_json_add_int64(result_json, "res_server_port", result->connection_info->port_server);
+		rmbt_json_add_bool(result_json, "res_encrypt", result->connection_info->encrypt);
 		if (result->connection_info->cipher != NULL)
-			json_object_object_add(result_json, "res_cipher", json_object_new_string(result->connection_info->cipher));
+			rmbt_json_add_string(result_json, "res_cipher", result->connection_info->cipher);
 		if (result->connection_info->chunksize > 0)
-			json_object_object_add(result_json, "res_chunksize", json_object_new_int64(result->connection_info->chunksize));
+			rmbt_json_add_int64(result_json, "res_chunksize", result->connection_info->chunksize);
 		if (result->connection_info->tcp_congestion != NULL)
-			json_object_object_add(result_json, "res_tcp_congestion", json_object_new_string(result->connection_info->tcp_congestion));
+			rmbt_json_add_string(result_json, "res_tcp_congestion", result->connection_info->tcp_congestion);
 	}
 
 	if (result->total_bytes_dl > 0)
-		json_object_object_add(result_json, "res_total_bytes_dl", json_object_new_int64(result->total_bytes_dl));
+		rmbt_json_add_int64(result_json, "res_total_bytes_dl", result->total_bytes_dl);
 	if (result->total_bytes_ul > 0)
-		json_object_object_add(result_json, "res_total_bytes_ul", json_object_new_int64(result->total_bytes_ul));
+		rmbt_json_add_int64(result_json, "res_total_bytes_ul", result->total_bytes_ul);
 
 	get_uname(result_json);
 }
 
-json_object *collect_summary_results(Result *result) {
-	json_object *result_json = json_object_new_object();
+rmbt_json collect_summary_results(Result *result) {
+	rmbt_json result_json = rmbt_json_new();
 
 	add_common_results(result, result_json);
 
 	if (result->rtt_tcp_payload_result != NULL && result->rtt_tcp_payload_result->rtt_tcp_payload_num > 0)
-		json_object_object_add(result_json, "res_rtt_tcp_payload_num", json_object_new_int64(result->rtt_tcp_payload_result->rtt_tcp_payload_num));
+		rmbt_json_add_int64(result_json, "res_rtt_tcp_payload_num", result->rtt_tcp_payload_result->rtt_tcp_payload_num);
 	if (result->rtt_tcp_payload_client_ns > 0)
-		json_object_object_add(result_json, "res_rtt_tcp_payload_client_ns", json_object_new_int64(result->rtt_tcp_payload_client_ns));
+		rmbt_json_add_int64(result_json, "res_rtt_tcp_payload_client_ns", result->rtt_tcp_payload_client_ns);
 	if (result->rtt_tcp_payload_server_ns > 0)
-		json_object_object_add(result_json, "res_rtt_tcp_payload_server_ns", json_object_new_int64(result->rtt_tcp_payload_server_ns));
+		rmbt_json_add_int64(result_json, "res_rtt_tcp_payload_server_ns", result->rtt_tcp_payload_server_ns);
 
 	if (result->dl_bytes > 0) {
-		json_object_object_add(result_json, "res_dl_num_flows", json_object_new_int64(result->dl_num_flows));
-		json_object_object_add(result_json, "res_dl_time_ns", json_object_new_int64(result->dl_time_ns));
-		json_object_object_add(result_json, "res_dl_bytes", json_object_new_int64(result->dl_bytes));
-		json_object_object_add(result_json, "res_dl_throughput_kbps", json_object_new_double(result->dl_throughput_kbps));
+		rmbt_json_add_int64(result_json, "res_dl_num_flows", result->dl_num_flows);
+		rmbt_json_add_int64(result_json, "res_dl_time_ns", result->dl_time_ns);
+		rmbt_json_add_int64(result_json, "res_dl_bytes", result->dl_bytes);
+		rmbt_json_add_double(result_json, "res_dl_throughput_kbps", result->dl_throughput_kbps);
 	}
 	if (result->ul_bytes > 0) {
-		json_object_object_add(result_json, "res_ul_num_flows", json_object_new_int64(result->ul_num_flows));
-		json_object_object_add(result_json, "res_ul_time_ns", json_object_new_int64(result->ul_time_ns));
-		json_object_object_add(result_json, "res_ul_bytes", json_object_new_int64(result->ul_bytes));
-		json_object_object_add(result_json, "res_ul_throughput_kbps", json_object_new_double(result->ul_throughput_kbps));
+		rmbt_json_add_int64(result_json, "res_ul_num_flows", result->ul_num_flows);
+		rmbt_json_add_int64(result_json, "res_ul_time_ns", result->ul_time_ns);
+		rmbt_json_add_int64(result_json, "res_ul_bytes", result->ul_bytes);
+		rmbt_json_add_double(result_json, "res_ul_throughput_kbps", result->ul_throughput_kbps);
 	}
 
 	return result_json;
 }
 
-static void add_json_array_if_nonempty(json_object *object, const char *key, json_object *json_array) {
-	if (json_object_array_length(json_array) > 0)
-		json_object_object_add(object, key, json_array);
+static void add_json_array_if_nonempty(rmbt_json object, const char *key, rmbt_json_array json_array) {
+	if (rmbt_json_array_length(json_array) > 0)
+		rmbt_json_add_array(object, key, json_array);
 	else
-		json_object_put(json_array);
+		rmbt_json_free_array(json_array);
 }
 
-json_object *collect_raw_results(Result *result, FlowResult *flow_results, int_fast16_t num_flow_results) {
-	json_object *result_json = json_object_new_object();
+rmbt_json collect_raw_results(Result *result, FlowResult *flow_results, int_fast16_t num_flow_results) {
+	rmbt_json result_json = rmbt_json_new();
 
 	add_common_results(result, result_json);
 
-	json_object *json_details = json_object_new_object();
-	json_object_object_add(result_json, "res_details", json_details);
+	rmbt_json json_details = rmbt_json_new();
 
 	if (result->rtt_tcp_payload_result != NULL) {
-		json_object *json_rtt_tcp_payload = json_object_new_object();
-		json_object_object_add(json_details, "rtt_tcp_payload", json_rtt_tcp_payload);
-		json_object_object_add(json_rtt_tcp_payload, "values",
+		rmbt_json json_rtt_tcp_payload = rmbt_json_new();
+		rmbt_json_add_array(json_rtt_tcp_payload, "values",
 				rtt_tcp_payloads_to_json_array(result->rtt_tcp_payload_result->rtt_tcp_payloads, result->rtt_tcp_payload_result->rtt_tcp_payload_num));
+		rmbt_json_add_object(json_details, "rtt_tcp_payload", json_rtt_tcp_payload);
 	}
 
-	json_object *json_init = json_object_new_array();
-	json_object *json_pretest_dl = json_object_new_array();
-	json_object *json_dl = json_object_new_array();
-	json_object *json_pretest_ul = json_object_new_array();
-	json_object *json_ul = json_object_new_array();
+	rmbt_json_array json_init = rmbt_json_new_array();
+	rmbt_json_array json_pretest_dl = rmbt_json_new_array();
+	rmbt_json_array json_dl = rmbt_json_new_array();
+	rmbt_json_array json_pretest_ul = rmbt_json_new_array();
+	rmbt_json_array json_ul = rmbt_json_new_array();
 
 	for (int_fast16_t i = 0; i < num_flow_results; i++) {
 		FlowResult *flow_result = flow_results + i;
 
-		json_object *init_obj = json_object_new_object();
-		json_object_array_add(json_init, init_obj);
+		rmbt_json init_obj = rmbt_json_new();
 
 		if (flow_result->connection_info.port_local != 0)
-			json_object_object_add(init_obj, "client_port", json_object_new_int64(flow_result->connection_info.port_local));
+			rmbt_json_add_int64(init_obj, "client_port", flow_result->connection_info.port_local);
 		if (flow_result->connection_info.cipher != NULL)
-			json_object_object_add(init_obj, "cipher", json_object_new_string(flow_result->connection_info.cipher));
+			rmbt_json_add_string(init_obj, "cipher", flow_result->connection_info.cipher);
 		if (flow_result->connection_info.tls_debug != NULL)
-			json_object_object_add(init_obj, "tls_debug", json_object_new_string(flow_result->connection_info.tls_debug));
+			rmbt_json_add_string(init_obj, "tls_debug", flow_result->connection_info.tls_debug);
+		rmbt_json_add_to_array(json_init, init_obj);
 
 		if (flow_result->pretest_dl.time_series != NULL)
-			json_object_array_add(json_pretest_dl, directionresult_to_json_obj(&flow_result->pretest_dl));
+			rmbt_json_add_to_array(json_pretest_dl, directionresult_to_json_obj(&flow_result->pretest_dl));
 		if (flow_result->dl.time_series != NULL)
-			json_object_array_add(json_dl, directionresult_to_json_obj(&flow_result->dl));
+			rmbt_json_add_to_array(json_dl, directionresult_to_json_obj(&flow_result->dl));
 		if (flow_result->pretest_ul.time_series != NULL)
-			json_object_array_add(json_pretest_ul, directionresult_to_json_obj(&flow_result->pretest_ul));
+			rmbt_json_add_to_array(json_pretest_ul, directionresult_to_json_obj(&flow_result->pretest_ul));
 		if (flow_result->ul.time_series != NULL)
-			json_object_array_add(json_ul, directionresult_to_json_obj(&flow_result->ul));
+			rmbt_json_add_to_array(json_ul, directionresult_to_json_obj(&flow_result->ul));
 	}
 
 	add_json_array_if_nonempty(json_details, "init", json_init);
@@ -331,22 +330,10 @@ json_object *collect_raw_results(Result *result, FlowResult *flow_results, int_f
 	add_json_array_if_nonempty(json_details, "pretest_ul", json_pretest_ul);
 	add_json_array_if_nonempty(json_details, "ul", json_ul);
 
+	rmbt_json_add_object(result_json, "res_details", json_details);
+
 	return result_json;
 }
-
-#pragma GCC diagnostic push  // require GCC 4.6
-#pragma GCC diagnostic ignored "-Wcast-qual" // json_object_object_foreachC otherwise leads to warnings
-void flatten_json_object_to_object(json_object *dst, json_object *src) {
-	if (src == NULL || dst == NULL)
-		return;
-	struct json_object_iter iter;
-	json_object_object_foreachC(src, iter)
-	{
-		json_object_get(iter.val);
-		json_object_object_add(dst, iter.key, iter.val);
-	}
-}
-#pragma GCC diagnostic pop   // require GCC 4.6
 
 void do_free_flow_results(FlowResult *flow_results, int_fast16_t num_flow_results) {
 	for (int_fast16_t i = 0; i < num_flow_results; i++) {

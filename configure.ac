@@ -13,9 +13,9 @@ AC_USE_SYSTEM_EXTENSIONS
 AC_PROG_CC
 
 # Checks for libraries.
-PKG_CHECK_MODULES([UUID], [uuid])
-PKG_CHECK_MODULES([JSON], [json-c])
-PKG_CHECK_MODULES([SSL], [libssl libcrypto])
+PKG_CHECK_MODULES([UUID], [uuid], [AC_DEFINE([HAVE_UUID], [1], [Use libuuid])])
+PKG_CHECK_MODULES([SSL], [libssl libcrypto], [AC_DEFINE([HAVE_LIBSSL], [1], [Use libssl])])
+PKG_CHECK_MODULES([JSON], [json-c], [AC_DEFINE([HAVE_JSONC], [1], [Use json-c])])
 
 AC_CONFIG_FILES([Makefile src/Makefile])
 AC_OUTPUT

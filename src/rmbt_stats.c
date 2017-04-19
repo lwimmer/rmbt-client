@@ -31,18 +31,18 @@ static pthread_mutex_t stats_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t stats_cnd = PTHREAD_COND_INITIALIZER;
 static StatsThreadArg *stats_arg = NULL;
 
- void get_uname(json_object *obj) {
+ void get_uname(rmbt_json obj) {
 	struct utsname n;
 	if (uname(&n) < 0)
 		return;
-	json_object_object_add(obj, "res_uname_sysname", json_object_new_string(n.sysname));
-	json_object_object_add(obj, "res_uname_nodename", json_object_new_string(n.nodename));
-	json_object_object_add(obj, "res_uname_release", json_object_new_string(n.release));
-	json_object_object_add(obj, "res_uname_version", json_object_new_string(n.version));
-	json_object_object_add(obj, "res_uname_machine", json_object_new_string(n.machine));
+	rmbt_json_add_string(obj, "res_uname_sysname", n.sysname);
+	rmbt_json_add_string(obj, "res_uname_nodename", n.nodename);
+	rmbt_json_add_string(obj, "res_uname_release", n.release);
+	rmbt_json_add_string(obj, "res_uname_version", n.version);
+	rmbt_json_add_string(obj, "res_uname_machine", n.machine);
 }
 
-static void tcp_info_set_json(json_object *obj, struct rmbt_tcp_info *i, socklen_t i_len) {
+static void tcp_info_set_json(rmbt_json obj, struct rmbt_tcp_info *i, socklen_t i_len) {
 	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_state);
 	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_ca_state);
 	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_retransmits);
@@ -105,27 +105,27 @@ static void tcp_info_set_json(json_object *obj, struct rmbt_tcp_info *i, socklen
 	JSON_ADD_OBJ_TCP_INFO(i_len, obj, tcpi_sndbuf_limited);
 }
 
-static json_object *get_tcp_info_entry_as_json_object(TcpInfoEntry* e) {
-	json_object *obj = json_object_new_object();
+static rmbt_json get_tcp_info_entry_as_json(TcpInfoEntry* e) {
+	rmbt_json obj = rmbt_json_new();
 	tcp_info_set_json(obj, &e->tcp_info, e->tcp_info_length);
-	json_object_object_add(obj, "timestamp_ns", json_object_new_int64(e->ts));
+	rmbt_json_add_int64(obj, "timestamp_ns", e->ts);
 	return obj;
 }
 
-json_object *get_stats_as_json_array(StatsThreadArg* e) {
-	json_object *arr = json_object_new_array();
+rmbt_json_array get_stats_as_json_array(StatsThreadArg* e) {
+	rmbt_json_array arr = rmbt_json_new_array();
 	for (size_t i = 0; i < e->length; i++) {
 		StatsThreadEntry *ste = &e->entries[i];
 		for (size_t j = 0; j < ste->tcp_infos_length; j++) {
-			json_object *obj = get_tcp_info_entry_as_json_object(&ste->tcp_infos[j]);
-			json_object_object_add(obj, "flow_id", json_object_new_int64((int64_t)i));
-			json_object_array_add(arr, obj);
+			rmbt_json obj = get_tcp_info_entry_as_json(&ste->tcp_infos[j]);
+			rmbt_json_add_int64(obj, "flow_id", (int64_t)i);
+			rmbt_json_add_to_array(arr, obj);
 		}
 	}
 	return arr;
 }
 
-//static json_object *read_tcp_info_json(int sfd) {
+//static rmbt_json read_tcp_info_json(int sfd) {
 //	struct rmbt_tcp_info info = { 0 };
 //	socklen_t info_len = sizeof(info);
 //	if (getsockopt(sfd, IPPROTO_TCP, TCP_INFO, &info, &info_len) != 0)
@@ -133,7 +133,7 @@ json_object *get_stats_as_json_array(StatsThreadArg* e) {
 //	return tcp_info_to_json(&info, info_len);
 //}
 
-//static void json_add_tcp_info(int sfd, json_object *array) {
+//static void json_add_tcp_info(int sfd, rmbt_json array) {
 //	json_object_array_add(array, read_tcp_info_json(sfd));
 //}
 //

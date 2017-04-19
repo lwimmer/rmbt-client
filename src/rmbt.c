@@ -17,7 +17,6 @@
 #include "rmbt.h"
 
 #include <uuid.h>
-#include <json.h>
 #include <signal.h>
 
 #include "rmbt_config.h"
@@ -26,10 +25,9 @@
 #include "rmbt_flow.h"
 #include "rmbt_ssl.h"
 #include "rmbt_stats.h"
+#include "rmbt_json.h"
 
 #define MAX_TO_FREE 64
-
-#define IS_JSON_NULL(x)	(json_object_get_type(x) == json_type_null)
 
 static void *to_free[MAX_TO_FREE];
 static uint_fast16_t to_free_cnt;
@@ -66,52 +64,39 @@ static void do_free(void) {
 	to_free_cnt = 0;
 }
 
-static void my_json_get_string(char **dst, json_object *json, const char *key) {
-	json_object *value;
-	if (json_object_object_get_ex(json, key, &value) && !IS_JSON_NULL(value)) {
-		int r = asprintf(dst, "%s", json_object_get_string(value));
-		if (r == -1)
-			fail("could not asprintf in my_json_get_string");
-		remember_to_free(*dst);
+static void my_json_get_string(char **dst, rmbt_json json, const char *key) {
+	char *value = NULL;
+	rmbt_json_get_string_alloc(&value, json, key);
+	if (value != NULL) {
+		remember_to_free(value);
+		*dst = value;
 	}
 }
 
-static void my_json_get_bool(bool *dst, json_object *json, const char *key) {
-	json_object *value;
-	if (json_object_object_get_ex(json, key, &value) && !IS_JSON_NULL(value))
-		(*dst) = json_object_get_boolean(value);
-}
-
-static void my_json_get_int_fast16_t(int_fast16_t *dst, json_object *json, const char *key) {
-	json_object *value;
-	if (json_object_object_get_ex(json, key, &value) && !IS_JSON_NULL(value))
-		(*dst) = json_object_get_int(value);
-}
-
-static void read_config(TestConfig *c, json_object *json) {
+static void read_config(TestConfig *c, rmbt_json json) {
 	my_json_get_string(&c->bind_ip, json, "cnf_bind_ip");
 	my_json_get_string(&c->server_host, json, "cnf_server_host");
 	my_json_get_string(&c->server_port, json, "cnf_server_port");
-	my_json_get_bool(&c->encrypt, json, "cnf_encrypt");
-	my_json_get_bool(&c->encrypt_debug, json, "cnf_encrypt_debug");
+	rmbt_json_get_bool(&c->encrypt, json, "cnf_encrypt");
+	rmbt_json_get_bool(&c->encrypt_debug, json, "cnf_encrypt_debug");
 	my_json_get_string(&c->cipherlist, json, "cnf_cipherlist");
 	my_json_get_string(&c->secret, json, "cnf_secret");
 	my_json_get_string(&c->token, json, "cnf_token");
 
 	int_fast16_t timeout_s = 0;
-	my_json_get_int_fast16_t(&timeout_s, json, "cnf_timeout_s");
+	rmbt_json_get_int_fast16_t(&timeout_s, json, "cnf_timeout_s");
 	if (timeout_s > 0)
 		c->timeout_ms = (int) (timeout_s * 1000);
 
-	my_json_get_int_fast16_t(&c->dl_num_flows, json, "cnf_dl_num_flows");
-	my_json_get_int_fast16_t(&c->ul_num_flows, json, "cnf_ul_num_flows");
-	my_json_get_int_fast16_t(&c->dl_duration_s, json, "cnf_dl_duration_s");
-	my_json_get_int_fast16_t(&c->ul_duration_s, json, "cnf_ul_duration_s");
-	my_json_get_int_fast16_t(&c->rtt_tcp_payload_num, json, "cnf_rtt_tcp_payload_num");
-	my_json_get_int_fast16_t(&c->dl_pretest_duration_s, json, "cnf_dl_pretest_duration_s");
-	my_json_get_int_fast16_t(&c->ul_pretest_duration_s, json, "cnf_ul_pretest_duration_s");
-	my_json_get_int_fast16_t(&c->dl_wait_time_s, json, "cnf_dl_wait_time_s");
-	my_json_get_int_fast16_t(&c->ul_wait_time_s, json, "cnf_ul_wait_time_s");
+	rmbt_json_get_int_fast16_t(&c->dl_num_flows, json, "cnf_dl_num_flows");
+	rmbt_json_get_int_fast16_t(&c->ul_num_flows, json, "cnf_ul_num_flows");
+	rmbt_json_get_int_fast16_t(&c->dl_duration_s, json, "cnf_dl_duration_s");
+	rmbt_json_get_int_fast16_t(&c->ul_duration_s, json, "cnf_ul_duration_s");
+	rmbt_json_get_int_fast16_t(&c->rtt_tcp_payload_num, json, "cnf_rtt_tcp_payload_num");
+	rmbt_json_get_int_fast16_t(&c->dl_pretest_duration_s, json, "cnf_dl_pretest_duration_s");
+	rmbt_json_get_int_fast16_t(&c->ul_pretest_duration_s, json, "cnf_ul_pretest_duration_s");
+	rmbt_json_get_int_fast16_t(&c->dl_wait_time_s, json, "cnf_dl_wait_time_s");
+	rmbt_json_get_int_fast16_t(&c->ul_wait_time_s, json, "cnf_ul_wait_time_s");
 
 	my_json_get_string(&c->file_summary, json, "cnf_file_summary");
 	my_json_get_string(&c->file_flows, json, "cnf_file_flows");
@@ -146,14 +131,14 @@ int main(int argc, char **argv) {
 	if (sigaction(SIGPIPE, &action, NULL) != 0)
 		fail("sigaction");
 
-	json_object *default_json = json_tokener_parse(DEFAULT_CONFIG);
+	rmbt_json default_json = rmbt_parse_json(DEFAULT_CONFIG);
 	if (default_json == NULL)
 		fail("could not read default config");
 	read_config(&config, default_json);
-	json_object_put(default_json);
+	rmbt_json_free(default_json);
 
-	json_object *add_to_result = NULL;
-	json_object *json;
+	rmbt_json add_to_result = NULL;
+	rmbt_json json;
 	char *input;
 	int c, r;
 	while ((c = getopt(argc, argv, "?c:b:h:p:et:s:f:d:u:n:v")) != -1)
@@ -164,17 +149,18 @@ int main(int argc, char **argv) {
 				input = read_stdin();
 				if (input == NULL)
 					fail("could not read config from stdin");
-				json = json_tokener_parse(input);
+				json = rmbt_parse_json(input);
 				free(input);
 			} else {
-				json = json_object_from_file(optarg);
+				json = rmbt_json_read_from_file(optarg);
 				if (json == NULL)
 					fail("could not read config file '%s'", optarg);
+				printf("%s\n", rmbt_json_to_string(json, true));
 			}
 			read_config(&config, json);
-			if (json_object_object_get_ex(json, "cnf_add_to_result", &add_to_result))
-				json_object_get(add_to_result);
-			json_object_put(json);
+			if (rmbt_json_get_object(&add_to_result, json, "cnf_add_to_result"))
+				json_object_get(add_to_result); // TODO remove jsob_object stuff
+			rmbt_json_free(json);
 			break;
 		case 'b':
 			config.bind_ip = optarg;
@@ -343,9 +329,9 @@ int main(int argc, char **argv) {
 	fprintf(stderr, "dl_throughput_mbps = %.6f\n", result.dl_throughput_kbps / 1000);
 	fprintf(stderr, "ul_throughput_mbps = %.6f\n", result.ul_throughput_kbps / 1000);
 
-	json_object *result_json = collect_summary_results(&result);
-	flatten_json_object_to_object(result_json, add_to_result);
-	printf("%s\n", json_object_to_json_string_ext(result_json, JSON_C_TO_STRING_PRETTY));
+	rmbt_json result_json = collect_summary_results(&result);
+	flatten_json(result_json, add_to_result);
+	printf("%s\n", rmbt_json_to_string(result_json, true));
 
 	const char *replacements[] = { \
 			"id_test", result.id_test, \
@@ -359,11 +345,11 @@ int main(int argc, char **argv) {
 		if (f == NULL)
 			perror("could not open file for result summary");
 		else {
-			fprintf(f, "%s\n", json_object_to_json_string_ext(result_json, JSON_C_TO_STRING_PLAIN));
+			fprintf(f, "%s\n", rmbt_json_to_string(result_json, false));
 			fclose(f);
 		}
 	}
-	json_object_put(result_json);
+	rmbt_json_free(result_json);
 
 	if (config.file_flows != NULL) {
 		bool ok = variable_subst(buf, sizeof(buf), config.file_flows, replacements, num_replacements);
@@ -371,10 +357,10 @@ int main(int argc, char **argv) {
 		if (f == NULL)
 			perror("could not open file for raw results");
 		else {
-			json_object *raw_result_json = collect_raw_results(&result, flow_results, num_threads);
-			flatten_json_object_to_object(raw_result_json, add_to_result);
-			fprintf(f, "%s\n", json_object_to_json_string_ext(raw_result_json, JSON_C_TO_STRING_PLAIN));
-			json_object_put(raw_result_json);
+			rmbt_json raw_result_json = collect_raw_results(&result, flow_results, num_threads);
+			flatten_json(raw_result_json, add_to_result);
+			fprintf(f, "%s\n", rmbt_json_to_string(raw_result_json, false));
+			rmbt_json_free(raw_result_json);
 			fclose(f);
 		}
 	}
@@ -385,15 +371,15 @@ int main(int argc, char **argv) {
 			if (f == NULL)
 				perror("could not open file for stats results");
 			else {
-				json_object *stats_json = get_stats_as_json_array(&starg);
-				fprintf(f, "%s\n", json_object_to_json_string_ext(stats_json, JSON_C_TO_STRING_PLAIN));
-				json_object_put(stats_json);
+				rmbt_json_array stats_json = get_stats_as_json_array(&starg);
+				fprintf(f, "%s\n", rmbt_json_array_to_string(stats_json, false));
+				rmbt_json_free_array(stats_json);
 				fclose(f);
 			}
 		}
 
 	if (add_to_result != NULL)
-		json_object_put(add_to_result);
+		rmbt_json_free(add_to_result);
 
 	shutdown_ssl();
 

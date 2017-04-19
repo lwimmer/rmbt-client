@@ -38,6 +38,4 @@
 #include <stdbool.h>
 #include <string.h>
 
-//#include <json.h>
-
 #endif /* SRC_RMBT_COMMON_H_ */

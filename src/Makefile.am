@@ -25,6 +25,8 @@ rmbt_SOURCES = rmbt.c \
     rmbt.h \
     rmbt_helper.c \
     rmbt_helper.h \
+    rmbt_json.c \
+    rmbt_json.h \
     rmbt_result.c \
     rmbt_result.h \
     rmbt_ssl.c \
