@@ -14,11 +14,11 @@ AM_CFLAGS = -std=gnu11 -O3 -g $(WARNINGS) $(OPTS) -DGIT_VERSION=\"$(GIT_VERSION)
 
 AM_LDFLAGS = -pthread
 
-# this lists the binaries to produce, the (non-PHONY, binary) targets in
-# the previous manual Makefile
 bin_PROGRAMS = rmbt
 rmbt_SOURCES = rmbt.c \
     rmbt_common.h \
+    rmbt_compress.c \
+    rmbt_compress.h \
     rmbt_config.h \
     rmbt_flow.c \
     rmbt_flow.h \
@@ -36,5 +36,5 @@ rmbt_SOURCES = rmbt.c \
     rmbt_token.c \
     rmbt_token.h
 
-rmbt_CFLAGS = $(JSON_CFLAGS) $(UUID_CFLAGS) $(SSL_CFLAGS) $(AM_CFLAGS)
-rmbt_LDADD = $(JSON_LIBS) $(UUID_LIBS) $(SSL_LIBS)
+rmbt_CFLAGS = $(JSON_CFLAGS) $(UUID_CFLAGS) $(SSL_CFLAGS) $(LZMA_CFLAGS) $(AM_CFLAGS)
+rmbt_LDADD = $(JSON_LIBS) $(UUID_LIBS) $(SSL_LIBS) $(LZMA_LIBS)

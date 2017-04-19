@@ -26,6 +26,7 @@
 #include "rmbt_ssl.h"
 #include "rmbt_stats.h"
 #include "rmbt_json.h"
+#include "rmbt_compress.h"
 
 #define MAX_TO_FREE 64
 
@@ -341,41 +342,25 @@ int main(int argc, char **argv) {
 	char buf[512];
 	if (config.file_summary != NULL) {
 		bool ok = variable_subst(buf, sizeof(buf), config.file_summary, replacements, num_replacements);
-		FILE *f = fopen(ok ? buf : config.file_summary, "w");
-		if (f == NULL)
-			perror("could not open file for result summary");
-		else {
-			fprintf(f, "%s\n", rmbt_json_to_string(result_json, false));
-			fclose(f);
-		}
+		rmbt_write_to_file(ok ? buf : config.file_summary, rmbt_json_to_string(result_json, false));
 	}
 	rmbt_json_free(result_json);
 
 	if (config.file_flows != NULL) {
 		bool ok = variable_subst(buf, sizeof(buf), config.file_flows, replacements, num_replacements);
-		FILE *f = fopen(ok ? buf : config.file_flows, "w");
-		if (f == NULL)
-			perror("could not open file for raw results");
-		else {
-			rmbt_json raw_result_json = collect_raw_results(&result, flow_results, num_threads);
-			flatten_json(raw_result_json, add_to_result);
-			fprintf(f, "%s\n", rmbt_json_to_string(raw_result_json, false));
-			rmbt_json_free(raw_result_json);
-			fclose(f);
-		}
+
+		rmbt_json raw_result_json = collect_raw_results(&result, flow_results, num_threads);
+		flatten_json(raw_result_json, add_to_result);
+		rmbt_write_to_file(ok ? buf : config.file_flows, rmbt_json_to_string(raw_result_json, false));
+		rmbt_json_free(raw_result_json);
 	}
 
 	if (config.file_stats != NULL) {
 			bool ok = variable_subst(buf, sizeof(buf), config.file_stats, replacements, num_replacements);
-			FILE *f = fopen(ok ? buf : config.file_stats, "w");
-			if (f == NULL)
-				perror("could not open file for stats results");
-			else {
-				rmbt_json_array stats_json = get_stats_as_json_array(&starg);
-				fprintf(f, "%s\n", rmbt_json_array_to_string(stats_json, false));
-				rmbt_json_free_array(stats_json);
-				fclose(f);
-			}
+
+			rmbt_json_array stats_json = get_stats_as_json_array(&starg);
+			rmbt_write_to_file(ok ? buf : config.file_stats, rmbt_json_to_string(stats_json, false));
+			rmbt_json_free_array(stats_json);
 		}
 
 	if (add_to_result != NULL)

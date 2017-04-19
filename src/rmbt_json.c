@@ -16,6 +16,10 @@
 
 #include "rmbt_json.h"
 
+#include <errno.h>
+
+#include "rmbt_compress.h"
+
 #ifdef HAVE_JSONC
 
 #define IS_JSON_NULL(x)	(json_object_get_type(x) == json_type_null)
@@ -111,7 +115,6 @@ void rmbt_json_free(rmbt_json json) {
 void rmbt_json_free_array(rmbt_json_array array) {
 	json_object_put(array);
 }
-
 
 #pragma GCC diagnostic push  // require GCC 4.6
 #pragma GCC diagnostic ignored "-Wcast-qual" // json_object_object_foreachC otherwise leads to warnings
