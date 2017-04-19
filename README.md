@@ -15,18 +15,19 @@ rmbt-client has the following requirements:
 * `libuuid`
 * `libssl`, `libcrypto`
 * `libjson-c`
+* (`xz-utils` / `liblzma`)
 * (`git`)
 
 To install the required build dependencies on `apt` based distos (Debian, Ubuntu, ...) run:
 
 ```
-sudo apt install libc-dev git autoconf automake make gcc pkg-config libjson-c-dev libssl-dev uuid-dev
+sudo apt install libc-dev git autoconf automake make gcc pkg-config libjson-c-dev libssl-dev uuid-dev liblzma-dev
 ```
 
 For `yum` based distros (CentOS, Fedora, ...) this should work:
 
 ```
-yum install git autoconf automake make gcc json-c-devel openssl-devel libuuid-devel
+yum install git autoconf automake make gcc json-c-devel openssl-devel libuuid-devel xz-devel
 ```
 
 To build simply run:
