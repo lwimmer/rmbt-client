@@ -21,13 +21,14 @@
 
 #ifdef HAVE_LZMA
 
-#define SUPPORT_COMPRESS 1
+#define RMBT_COMPRESS_EXT ".xz"
 
 #include <lzma.h>
 
 #define LZMA_PRESET 0
 
-static bool rmbt_compress(const char *input_data, size_t input_data_length, FILE *f) {
+static bool rmbt_compress(const char *input_data, size_t input_data_length,
+		FILE *f) {
 
 	lzma_stream strm = LZMA_STREAM_INIT;
 	lzma_ret ret = lzma_easy_encoder(&strm, LZMA_PRESET, LZMA_CHECK_CRC32);
@@ -37,7 +38,7 @@ static bool rmbt_compress(const char *input_data, size_t input_data_length, FILE
 	}
 
 	uint8_t outbuf[BUFSIZ];
-	strm.next_in = (const uint8_t *)input_data;
+	strm.next_in = (const uint8_t *) input_data;
 	strm.avail_in = input_data_length;
 	strm.next_out = outbuf;
 	strm.avail_out = sizeof(outbuf);
@@ -47,11 +48,12 @@ static bool rmbt_compress(const char *input_data, size_t input_data_length, FILE
 		if (strm.avail_out == 0 || ret == LZMA_STREAM_END) {
 			size_t write_size = sizeof(outbuf) - strm.avail_out;
 			if (fwrite(outbuf, 1, write_size, f) != write_size) {
-				fprintf(stderr, "error while writing to file: %s", strerror(errno));
+				fprintf(stderr, "error while writing to file: %s",
+						strerror(errno));
 				return false;
 			}
 			if (ret == LZMA_STREAM_END)
-			break;
+				break;
 			strm.next_out = outbuf;
 			strm.avail_out = sizeof(outbuf);
 
@@ -67,18 +69,9 @@ static bool rmbt_compress(const char *input_data, size_t input_data_length, FILE
 	return true;
 }
 
-#else
-
-#define SUPPORT_COMPRESS 0
-#define rmbt_compress(a,b,c) (false)
-
 #endif /* HAVE_LZMA */
 
 bool rmbt_write_to_file(const char *filename, const char *data) {
-
-	bool compress = false;
-	char *dot = strrchr(filename, '.');
-	compress = SUPPORT_COMPRESS && dot && !strcmp(dot, ".xz");
 
 	FILE *f = fopen(filename, "w");
 	if (f == NULL) {
@@ -89,12 +82,18 @@ bool rmbt_write_to_file(const char *filename, const char *data) {
 
 	size_t data_len = strlen(data);
 
-	if (compress) {
+	bool done = false;
+#ifdef RMBT_COMPRESS_EXT
+	char *dot = strrchr(filename, '.');
+	if (dot && !strcmp(dot, RMBT_COMPRESS_EXT)) {
 		if (!rmbt_compress(data, data_len, f)) {
 			fprintf(stderr, "error while compressing %s", filename);
 			return false;
 		}
-	} else {
+		done = true;
+	}
+#endif
+	if (!done) {
 		if (fwrite(data, 1, data_len, f) != data_len) {
 			fprintf(stderr, "error while writing to %s: %s", filename,
 					strerror(errno));
