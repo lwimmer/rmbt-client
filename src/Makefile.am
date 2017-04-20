@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = foreign
 
-GIT_VERSION := $(shell git describe --abbrev=9 --dirty --always --tags 2> /dev/null)
+GIT_VERSION := $(shell git describe --abbrev=9 --dirty --always --tags --long 2> /dev/null)
 
 WARNINGS =	-Wall -Wextra -Wformat=2 -Wswitch-default -Wcast-align -Wpointer-arith \
     -Wbad-function-cast -Wstrict-prototypes -Winline -Wundef -Wnested-externs \

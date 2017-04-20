@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_INIT(rmbt-client,
-	m4_esyscmd_s([git describe --abbrev=9 --dirty --always --tags]),
+	m4_esyscmd_s([git describe --abbrev=9 --dirty --always --tags --long]),
 	[https://github.com/lwimmer/rmbt-client/issues],,
 	[https://github.com/lwimmer/rmbt-client])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror -Wno-portability])
