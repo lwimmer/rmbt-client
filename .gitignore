@@ -26,6 +26,7 @@ config.guess
 config.log
 config.status
 config.sub
+configure.lineno
 install-sh
 depcomp
 missing
