@@ -265,8 +265,6 @@ int main(int argc, char **argv) {
 
 	init_ssl(config.encrypt);
 
-	fprintf(stderr, "=== rmbt %s starting ===\n", RMBT_VERSION);
-
 	Result result = { .id_test = uuid_str };
 
 	int_fast16_t num_threads = config.dl_num_flows;
