@@ -17,10 +17,15 @@
 #ifndef SRC_RMBT_CONFIG_H_
 #define SRC_RMBT_CONFIG_H_
 
-#ifndef GIT_VERSION
-#define GIT_VERSION "unknown"
+#ifndef RMBT_VERSION
+# if defined(GIT_VERSION)
+#  define RMBT_VERSION GIT_VERSION
+# elif defined(VERSION)
+#  define RMBT_VERSION VERSION
+# else
+#  define RMBT_VERSION "unknown"
+# endif
 #endif
-#define RMBT_VERSION GIT_VERSION
 
 #define DEFAULT_CONFIG "{ \n\
   \"cnf_encrypt\": false, \n\

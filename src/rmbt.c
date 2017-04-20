@@ -34,8 +34,7 @@ static void *to_free[MAX_TO_FREE];
 static uint_fast16_t to_free_cnt;
 
 static void print_help(void) {
-	fprintf(stderr, "==== rmbt %s ====\n"
-			"command line arguments:\n\n"
+	fprintf(stderr, "command line arguments:\n\n"
 			" -c     json config file; use \"-\" to read from stdin\n"
 			" -b     local ip to bind\n"
 			" -h     host to connect to\n"
@@ -48,7 +47,7 @@ static void print_help(void) {
 			" -u     measurement duration for uplink\n"
 			" -n     number of rtt_tcp_payloads\n\n"
 			"Default config:\n"
-			"%s\n", RMBT_VERSION, DEFAULT_CONFIG);
+			"%s\n", DEFAULT_CONFIG);
 }
 
 static void remember_to_free(void *ptr) {
@@ -127,6 +126,8 @@ static char *read_stdin(void) {
 }
 
 int main(int argc, char **argv) {
+	fprintf(stderr, "==== rmbt %s ====\n", RMBT_VERSION);
+
 	TestConfig config = { 0 };
 
 	struct sigaction action = { .sa_handler = SIG_IGN };

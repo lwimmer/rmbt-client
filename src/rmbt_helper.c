@@ -114,4 +114,5 @@ bool variable_subst(char *dst, size_t dst_size, const char *src, const char **re
 			start = delim_end + 1;
 		}
 	}
+	return true;
 }

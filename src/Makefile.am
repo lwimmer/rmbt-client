@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = foreign
 
-GIT_VERSION := $(shell git describe --abbrev=9 --dirty --always --tags)
+GIT_VERSION := $(shell git describe --abbrev=9 --dirty --always --tags 2> /dev/null)
 
 WARNINGS =	-Wall -Wextra -Wformat=2 -Wswitch-default -Wcast-align -Wpointer-arith \
     -Wbad-function-cast -Wstrict-prototypes -Winline -Wundef -Wnested-externs \
@@ -10,7 +10,9 @@ WARNINGS =	-Wall -Wextra -Wformat=2 -Wswitch-default -Wcast-align -Wpointer-arit
     -Wsign-compare -Wuninitialized -Wno-format-nonliteral -Wmissing-noreturn
 OPTS =		-fno-common -fstrict-aliasing -fmessage-length=0
 
-AM_CFLAGS = -std=gnu11 -O3 -g $(WARNINGS) $(OPTS) -DGIT_VERSION=\"$(GIT_VERSION)\"
+AM_CFLAGS = -std=gnu11 -O3 -g $(WARNINGS) $(OPTS)
+
+AM_CFLAGS += $(if $(GIT_VERSION),-DGIT_VERSION=\"$(GIT_VERSION)\",)
 
 AM_LDFLAGS = -pthread
 
