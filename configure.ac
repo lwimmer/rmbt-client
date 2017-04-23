@@ -1,18 +1,19 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
+AC_PREREQ([2.61])
 AC_INIT(rmbt-client,
 	m4_esyscmd_s([git describe --abbrev=9 --dirty --always --tags --long 2> /dev/null || echo unknown]),
 	[https://github.com/lwimmer/rmbt-client/issues],,
 	[https://github.com/lwimmer/rmbt-client])
-AM_INIT_AUTOMAKE([foreign -Wall -Werror -Wno-portability])
-AM_SILENT_RULES([yes])
+AM_INIT_AUTOMAKE([foreign std-options -Wall -Werror -Wno-portability])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AC_CONFIG_SRCDIR([src/rmbt.c])
 AC_CONFIG_HEADERS([config.h])
 
 AC_USE_SYSTEM_EXTENSIONS
 
-AC_PROG_CC
+AC_PROG_CC([cc gcc clang])
 
 # Checks for libraries.
 PKG_CHECK_MODULES([UUID], [uuid], [AC_DEFINE([HAVE_UUID], [1], [Use libuuid])])
