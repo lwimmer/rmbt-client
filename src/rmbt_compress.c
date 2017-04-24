@@ -25,7 +25,7 @@
 
 #include <lzma.h>
 
-#define LZMA_PRESET 0
+#define LZMA_PRESET 4
 
 static bool rmbt_compress(const char *input_data, size_t input_data_length,
 		FILE *f) {
