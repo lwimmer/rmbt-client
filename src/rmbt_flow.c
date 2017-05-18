@@ -880,6 +880,8 @@ __attribute__ ((flatten,hot)) static bool do_downlink(State *s) {
 	res->time_series = time_series;
 	res->num_time_series = ts_idx;
 
+	res->time_end_rel_ns = get_relative_time_ns(s);
+
 	/* need to reconnect */
 	if (lastByte != BYTE_END) {
 		my_log_force(s, "reinit of connection!");
@@ -896,8 +898,6 @@ __attribute__ ((flatten,hot)) static bool do_downlink(State *s) {
 	ok = read_time(s, &res->duration_server_ns);
 	if (!ok)
 		return false;
-
-	res->time_end_rel_ns = get_relative_time_ns(s);
 
 	return read_ok_accept(s);
 }
