@@ -286,6 +286,7 @@ int main(int argc, char **argv) {
 
 	struct timespec ts_zero;
 	ts_fill(&ts_zero);
+	atomic_bool global_state = true;
 
 	for (int_fast16_t t = 0; t < num_threads; t++) {
 		thread_arg[t].cfg = &config;
@@ -293,6 +294,7 @@ int main(int argc, char **argv) {
 		thread_arg[t].thread_num = t;
 		thread_arg[t].ts_zero = &ts_zero;
 		thread_arg[t].flow_result = &flow_results[t];
+		thread_arg[t].global_state = &global_state;
 		thread_arg[t].do_log = t == 0;
 		thread_arg[t].do_rtt_tcp_payload = t == 0;
 		thread_arg[t].do_downlink = t < config.dl_num_flows;

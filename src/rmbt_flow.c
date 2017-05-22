@@ -109,6 +109,7 @@ __attribute__ ((hot)) inline static int_fast64_t get_relative_time_ns(State *s) 
 }
 
 __attribute__ ((format (printf, 2, 3))) static bool add_error(State *s, const char *fmt, ...) {
+	*s->targ->global_state = false;
 	s->have_err = true;
 	for (uint_fast16_t i = 0; i < NUM_ERRORS; i++) {
 		if (s->error[i] == NULL) {
@@ -186,6 +187,8 @@ static void print_errors(State *s, FILE *stream, bool clear) {
 }
 
 static inline bool barrier_wait(State *s) {
+	if (! *s->targ->global_state)
+		return false;
 	int res = pthread_barrier_wait(s->targ->barrier);
 	return (res == PTHREAD_BARRIER_SERIAL_THREAD);
 }

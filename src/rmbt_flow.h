@@ -20,6 +20,8 @@
 #include "rmbt_common.h"
 #include "rmbt_result.h"
 
+#include <stdatomic.h>
+
 typedef struct {
 	char *bind_ip, *server_host, *server_port, *cipherlist, *secret, *token, *test_id, *file_summary, *file_flows, *file_stats;
 	int_fast16_t dl_num_flows, ul_num_flows, dl_duration_s, ul_duration_s, rtt_tcp_payload_num, dl_pretest_duration_s, ul_pretest_duration_s, dl_wait_time_s,
@@ -36,6 +38,7 @@ typedef struct {
 	pthread_barrier_t *barrier;
 	struct timespec *ts_zero;
 	FlowResult *flow_result;
+	atomic_bool *global_state;
 	bool do_log;
 	bool do_rtt_tcp_payload;
 	bool do_uplink;
