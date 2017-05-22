@@ -101,6 +101,7 @@ typedef struct {
 	char unread_buf[BUF_SIZE];
 	char *error[NUM_ERRORS];
 	bool have_err;
+	bool need_reconnect;
 } State;
 
 __attribute__ ((hot)) inline static int_fast64_t get_relative_time_ns(State *s) {
@@ -884,11 +885,10 @@ __attribute__ ((flatten,hot)) static bool do_downlink(State *s) {
 
 	/* need to reconnect */
 	if (lastByte != BYTE_END) {
-		my_log_force(s, "reinit of connection!");
-		ok = disconnect(s);
-		if (!ok)
-			return false;
-		return connect_and_send_token(s);
+		my_log_force(s, "need reconnect");
+		s->need_reconnect = true;
+		res->duration_server_ns = 0;
+		return true;
 	}
 
 	ok = write_to_server(s, OK NL);
@@ -979,6 +979,7 @@ __attribute__ ((flatten,hot)) static bool do_uplink(State *s) {
 
 	int_fast64_t total_bytes_written = 0;
 	int_fast64_t timediff_ns, max_timediff_ns = s->config->ul_duration_s * I_1E9;
+	int_fast64_t cutoff_timediff_ns = (s->config->ul_duration_s + s->config->ul_wait_time_s) * I_1E9;
 
 	struct pollfd pfd = { .fd = s->socket_fd };
 
@@ -987,8 +988,9 @@ __attribute__ ((flatten,hot)) static bool do_uplink(State *s) {
 	bool last_chunk = false, stop_writing = false;
 	bool ssl_need_read = false, ssl_need_write = false;
 	bool poll_read = false, poll_write = false;
-	for (;;) {
+	do {
 		// we always want to read
+		timediff_ns = ts_diff(&ts_start);
 		if (poll_read && (poll_write || (!ssl_need_write && stop_writing))) {
 			if (s->ssl != NULL && SSL_pending(s->ssl) > 0)
 				poll_read = false;
@@ -1038,7 +1040,6 @@ __attribute__ ((flatten,hot)) static bool do_uplink(State *s) {
 					stop_writing = true;
 				}
 
-				timediff_ns = ts_diff(&ts_start);
 				if (timediff_ns >= max_timediff_ns && !last_chunk) {
 					s->buf_chunk[chunksize - 1] = BYTE_END; // set last byte to termination value
 					last_chunk = true;
@@ -1080,7 +1081,7 @@ __attribute__ ((flatten,hot)) static bool do_uplink(State *s) {
 				break;
 			}
 		}
-	}
+	} while (timediff_ns < cutoff_timediff_ns);
 
 	set_low_delay(s);
 
@@ -1088,7 +1089,27 @@ __attribute__ ((flatten,hot)) static bool do_uplink(State *s) {
 
 	res->time_end_rel_ns = get_relative_time_ns(s);
 
+	/* need to reconnect */
+	if (timediff_ns >= cutoff_timediff_ns) {
+		my_log_force(s, "cutoff time reached");
+		s->need_reconnect = true;
+		return true;
+	}
+
 	return read_ok_accept(s);
+}
+
+static bool check_for_reconnect(State *s) {
+	if (s->need_reconnect) {
+		bool ok = disconnect(s);
+		if (!ok)
+			return false;
+		ok = connect_and_send_token(s);
+		if (!ok)
+			return false;
+		s->need_reconnect = false;
+	}
+	return true;
 }
 
 static inline bool quit(State *s) {
@@ -1140,6 +1161,9 @@ static bool run_test(State *s) {
 	my_log(s, "downlink test start... (%" PRIuFAST16 "s)", s->config->dl_duration_s);
 	if (s->targ->do_downlink) {
 		ok = do_downlink(s);
+		if (!ok)
+			return false;
+		ok = check_for_reconnect(s);
 		if (!ok)
 			return false;
 	}
