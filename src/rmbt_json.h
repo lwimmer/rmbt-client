@@ -38,6 +38,7 @@ void rmbt_json_add_to_array(rmbt_json_array array, rmbt_json object);
 
 void rmbt_json_add_object(rmbt_json obj, const char *key, rmbt_json val);
 void rmbt_json_add_int64(rmbt_json obj, const char *key, int64_t val);
+void rmbt_json_add_null(rmbt_json obj, const char *key);
 void rmbt_json_add_string(rmbt_json obj, const char *key, const char *val);
 void rmbt_json_add_double(rmbt_json obj, const char *key, double val);
 void rmbt_json_add_bool(rmbt_json obj, const char *key, bool val);

@@ -214,6 +214,7 @@ static void add_common_results(Result *result, rmbt_json result_json) {
 	rmbt_json_add_int64(result_json, "res_time_end_s", result->time_end_s);
 	if (result->error == NULL) {
 		rmbt_json_add_string(result_json, "res_status", SUCCESS);
+		rmbt_json_add_null(result_json, "res_status_msg");
 	} else {
 		char status[sizeof(result->error) + strlen(FAIL)];
 		snprintf(status, sizeof(status), "%s%s", FAIL, PHASE_STRING[result->last_phase]);

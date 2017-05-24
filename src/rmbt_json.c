@@ -44,6 +44,10 @@ void rmbt_json_add_int64(rmbt_json obj, const char *key, int64_t val) {
 	json_object_object_add(obj, key, json_object_new_int64(val));
 }
 
+void rmbt_json_add_null(rmbt_json obj, const char *key) {
+	json_object_object_add(obj, key, NULL);
+}
+
 void rmbt_json_add_string(rmbt_json obj, const char *key, const char *val) {
 	json_object_object_add(obj, key, json_object_new_string(val));
 }
