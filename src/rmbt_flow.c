@@ -194,7 +194,7 @@ static void print_errors(State *s, FILE *stream, bool clear) {
  * We don't use pthread_barrier, as it is not available on Android.
  * Also this way we can abort all threads more easily if one fails.
  */
-static inline bool barrier_wait(State *s) {
+static bool barrier_wait(State *s) {
 	RmbtBarrier *b = s->targ->barrier;
 	pthread_mutex_lock(&b->mutex);
 	if (b->global_abort) {
