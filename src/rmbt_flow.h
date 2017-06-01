@@ -32,18 +32,31 @@ typedef struct {
 } TestConfig;
 
 typedef struct {
+	atomic_bool global_abort;
+	pthread_mutex_t mutex;
+	pthread_cond_t cond;
+	int_fast16_t total;
+	int_fast16_t entered;
+	int_fast16_t left;
+} RmbtBarrier;
+
+#define RMBT_BARRIER_INITIALIZER { false, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, 0, 0, 0 }
+
+typedef struct {
 	TestConfig *cfg;
 	pthread_t thread;
 	int_fast16_t thread_num;
-	pthread_barrier_t *barrier;
+	int_fast16_t thread_count;
 	struct timespec *ts_zero;
+	RmbtBarrier *barrier;
 	FlowResult *flow_result;
-	atomic_bool *global_state;
 	bool do_log;
 	bool do_rtt_tcp_payload;
 	bool do_uplink;
 	bool do_downlink;
 } ThreadArg;
+
+#define RETURN_IF_NOK(x) if (!(x)) return false;
 
 void *run_test_thread_start(void *arg);
 

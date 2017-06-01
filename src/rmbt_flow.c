@@ -77,6 +77,8 @@
 
 #define I_1E9 (int_fast64_t) 1000000000
 
+#define BARRIER RETURN_IF_NOK(barrier_wait(s))
+
 #define IS_SSL_WANT_READ_OR_WRITE(x)	((x == SSL_ERROR_WANT_READ) || (x == SSL_ERROR_WANT_WRITE))
 
 #define NEED_POLL_READ	-2
@@ -109,7 +111,9 @@ __attribute__ ((hot)) inline static int_fast64_t get_relative_time_ns(State *s) 
 }
 
 __attribute__ ((format (printf, 2, 3))) static bool add_error(State *s, const char *fmt, ...) {
-	*s->targ->global_state = false;
+	s->targ->barrier->global_abort = true;
+	pthread_cond_broadcast(&s->targ->barrier->cond);
+
 	s->have_err = true;
 	for (uint_fast16_t i = 0; i < NUM_ERRORS; i++) {
 		if (s->error[i] == NULL) {
@@ -186,11 +190,36 @@ static void print_errors(State *s, FILE *stream, bool clear) {
 		s->have_err = false;
 }
 
+/*
+ * We don't use pthread_barrier, as it is not available on Android.
+ * Also this way we can abort all threads more easily if one fails.
+ */
 static inline bool barrier_wait(State *s) {
-	if (! *s->targ->global_state)
+	RmbtBarrier *b = s->targ->barrier;
+	pthread_mutex_lock(&b->mutex);
+	if (b->global_abort) {
+		pthread_cond_broadcast(&b->cond);
+		pthread_mutex_unlock(&b->mutex);
 		return false;
-	int res = pthread_barrier_wait(s->targ->barrier);
-	return (res == PTHREAD_BARRIER_SERIAL_THREAD);
+	}
+
+	while (! b->global_abort && b->entered == b->total) /* not all threads have left the last barrier */
+		pthread_cond_wait(&b->cond, &b->mutex);
+
+	if (++b->entered == b->total)
+		pthread_cond_broadcast(&b->cond); /* if I was the last one, tell the others */
+
+	while (! b->global_abort && b->entered < b->total) /* the barrier. waiting for the others */
+		pthread_cond_wait(&b->cond, &b->mutex);
+
+	if (++b->left == b->total) { /* I was the last one to leave, cleanup */
+		b->entered = b->left = 0;
+		pthread_cond_broadcast(&b->cond); /* tell threads potentially waiting for the next barrier */
+	}
+
+	bool result = ! b->global_abort;
+	pthread_mutex_unlock(&b->mutex);
+	return result;
 }
 
 static inline void set_nodelay(State *s, int value) {
@@ -655,7 +684,7 @@ static bool connect_to_server(State *s) {
 		if (s->config->encrypt_debug)
 			s->targ->flow_result->connection_info.tls_debug = get_ssl_debug(ssl);
 	}
-	bool ok = read_ok_accept(s);
+	RETURN_IF_NOK(read_ok_accept(s));
 
 	struct sockaddr_storage addr;
 	socklen_t addr_len = sizeof(addr);
@@ -674,23 +703,19 @@ static bool connect_to_server(State *s) {
 		s->targ->flow_result->connection_info.port_server = ntohs(port);
 	}
 
-	return ok;
+	return true;
 }
 
 static bool send_token(State *s) {
 	if (!MASK_IS_SET(s->mask, M_TOKEN))
 		return add_error(s, "expected server to accept TOKEN");
 
-	bool ok = write_to_server(s, TOKEN " %s\n", s->config->token);
-	if (!ok)
-		return false;
+	RETURN_IF_NOK(write_to_server(s, TOKEN " %s\n", s->config->token));
 	return read_ok_accept(s);
 }
 
 static bool connect_and_send_token(State *s) {
-	bool ok = connect_to_server(s);
-	if (!ok)
-		return false;
+	RETURN_IF_NOK(connect_to_server(s));
 	return send_token(s);
 }
 
@@ -713,9 +738,7 @@ static bool do_getchunks(State *s, int_fast32_t chunks, struct timespec *ts_zero
 
 	data_point->time_ns = ts_diff(ts_zero); // t_begin
 
-	bool ok = write_to_server(s, GETCHUNKS " %" PRIuFAST32 NL, chunks);
-	if (!ok)
-		return false;
+	RETURN_IF_NOK(write_to_server(s, GETCHUNKS " %" PRIuFAST32 NL, chunks));
 
 	int_fast64_t totalRead = 0;
 	long read;
@@ -733,13 +756,9 @@ static bool do_getchunks(State *s, int_fast32_t chunks, struct timespec *ts_zero
 
 	data_point->time_ns_end = ts_diff(ts_zero); // t_end
 
-	ok = write_to_server(s, OK NL);
-	if (!ok)
-		return false;
+	RETURN_IF_NOK(write_to_server(s, OK NL));
 
-	ok = read_time(s, &data_point->duration_server);
-	if (!ok)
-		return false;
+	RETURN_IF_NOK(read_time(s, &data_point->duration_server));
 
 	return read_ok_accept(s);
 }
@@ -759,9 +778,7 @@ static bool do_rtt_tcp_payload(State *s) {
 
 		struct timespec ts_start;
 		ts_fill(&ts_start);
-		bool ok = write_to_server(s, PING NL);
-		if (!ok)
-			return false;
+		RETURN_IF_NOK(write_to_server(s, PING NL));
 
 		long r = my_readline(s, buf, sizeof(buf), false);
 		rtt_tcp_payloads[i].rtt_client_ns = ts_diff(&ts_start);
@@ -771,19 +788,13 @@ static bool do_rtt_tcp_payload(State *s) {
 		if (strcmp(PONG, (char *) buf) != 0)
 			return add_error(s, "expected PING, server sent: %s", buf);
 
-		ok = write_to_server(s, OK NL);
-		if (!ok)
-			return false;
+		RETURN_IF_NOK(write_to_server(s, OK NL));
 
-		ok = read_time(s, &rtt_tcp_payloads[i].rtt_server_ns);
-		if (!ok)
-			return false;
+		RETURN_IF_NOK(read_time(s, &rtt_tcp_payloads[i].rtt_server_ns));
 
 		rtt_tcp_payloads[i].time_end_rel_ns = get_relative_time_ns(s);
 
-		ok = read_ok_accept(s);
-		if (!ok)
-			return false;
+		RETURN_IF_NOK(read_ok_accept(s));
 	}
 
 	rtt_tcp_payload_result->rtt_tcp_payloads = rtt_tcp_payloads;
@@ -804,11 +815,8 @@ static bool do_pretest(State *s, int_fast16_t duration, DirectionResult *res, bo
 	ts_copy(&ts_end, &ts_zero);
 	ts_end.tv_sec += duration;
 	int_fast64_t timediff;
-	bool ok;
 	do {
-		ok = do_chunks(s, chunks, &ts_zero, &time_series[ts_idx]);
-		if (!ok)
-			return false;
+		RETURN_IF_NOK(do_chunks(s, chunks, &ts_zero, &time_series[ts_idx]));
 		chunks *= 2;
 
 		if (ts_idx >= max_datapoints) {
@@ -841,9 +849,7 @@ __attribute__ ((flatten,hot)) static bool do_downlink(State *s) {
 
 	struct timespec ts_start;
 	ts_fill(&ts_start);
-	bool ok = write_to_server(s, GETTIME " %" PRIdFAST16 "\n", s->config->dl_duration_s);
-	if (!ok)
-		return false;
+	RETURN_IF_NOK(write_to_server(s, GETTIME " %" PRIdFAST16 "\n", s->config->dl_duration_s));
 
 	int_fast64_t totalRead = 0;
 	int_fast64_t read;
@@ -894,13 +900,9 @@ __attribute__ ((flatten,hot)) static bool do_downlink(State *s) {
 		return true;
 	}
 
-	ok = write_to_server(s, OK NL);
-	if (!ok)
-		return false;
+	RETURN_IF_NOK(write_to_server(s, OK NL));
 
-	ok = read_time(s, &res->duration_server_ns);
-	if (!ok)
-		return false;
+	RETURN_IF_NOK(read_time(s, &res->duration_server_ns));
 
 	return read_ok_accept(s);
 }
@@ -909,13 +911,9 @@ static bool do_putchunks(State *s, int_fast32_t chunks, struct timespec *ts_zero
 	if (!MASK_IS_SET(s->mask, M_PUTNORESULT))
 		return add_error(s, "expected server to accept PUTNORESULT");
 
-	bool ok = write_to_server(s, PUTNORESULT NL);
-	if (!ok)
-		return false;
+	RETURN_IF_NOK(write_to_server(s, PUTNORESULT NL));
 
-	ok = read_ok(s);
-	if (!ok)
-		return false;
+	RETURN_IF_NOK(read_ok(s));
 
 	data_point->time_ns = ts_diff(ts_zero); // t_begin
 
@@ -938,9 +936,7 @@ static bool do_putchunks(State *s, int_fast32_t chunks, struct timespec *ts_zero
 
 	set_low_delay(s);
 
-	ok = read_time(s, &data_point->duration_server);
-	if (!ok)
-		return false;
+	RETURN_IF_NOK(read_time(s, &data_point->duration_server));
 
 	data_point->time_ns_end = ts_diff(ts_zero); // t_end
 
@@ -959,15 +955,11 @@ __attribute__ ((flatten,hot)) static bool do_uplink(State *s) {
 
 	res->time_start_rel_ns = get_relative_time_ns(s);
 
-	bool ok = write_to_server(s, PUT NL);
-	if (!ok)
-		return false;
+	RETURN_IF_NOK(write_to_server(s, PUT NL));
 
-	ok = read_ok(s);
-	if (!ok)
-		return false;
+	RETURN_IF_NOK(read_ok(s));
 
-	barrier_wait(s); // barrier with other flow do_uplink()s
+	BARRIER; // barrier with other flow do_uplink()s
 
 	const int_fast32_t chunksize = s->targ->flow_result->connection_info.chunksize;
 
@@ -1104,12 +1096,8 @@ __attribute__ ((flatten,hot)) static bool do_uplink(State *s) {
 
 static bool check_for_reconnect(State *s) {
 	if (s->need_reconnect) {
-		bool ok = disconnect(s);
-		if (!ok)
-			return false;
-		ok = connect_and_send_token(s);
-		if (!ok)
-			return false;
+		RETURN_IF_NOK(disconnect(s));
+		RETURN_IF_NOK(connect_and_send_token(s));
 		s->need_reconnect = false;
 	}
 	return true;
@@ -1130,78 +1118,59 @@ static bool run_test(State *s) {
 
 	my_log(s, "connecting...");
 
-	bool ok = connect_and_send_token(s);
-	if (!ok)
-		return false;
+	RETURN_IF_NOK(connect_and_send_token(s));
 
-	barrier_wait(s);
+	BARRIER;
 	my_log(s, "connected with %" PRIuFAST16 " flow(s) for dl; %" PRIuFAST16 " flow(s) for ul", s->config->dl_num_flows, s->config->ul_num_flows);
 
 	/* pretest downlink */
 	set_phase(s, PH_pretest_dl);
 	my_log(s, "pretest downlink start... (min %" PRIuFAST16 "s)", s->config->dl_pretest_duration_s);
-	if (s->targ->do_downlink) {
-		ok = do_pretest_downlink(s);
-		if (!ok)
-			return false;
-	}
-	barrier_wait(s);
+	if (s->targ->do_downlink)
+		RETURN_IF_NOK(do_pretest_downlink(s));
+	BARRIER;
 	my_log(s, "pretest downlink end.");
 
 	/* rtt_tcp_payload */
 	set_phase(s, PH_rtt_tcp_payload);
 	my_log(s, "rtt_tcp_payload start... (%" PRIuFAST16 " times)", s->config->rtt_tcp_payload_num);
-	if (s->targ->do_rtt_tcp_payload) { /* only one thread does rtt_tcp_payload */
-		ok = do_rtt_tcp_payload(s);
-		if (!ok)
-			return false;
-	}
-	barrier_wait(s);
+	if (s->targ->do_rtt_tcp_payload) /* only one thread does rtt_tcp_payload */
+		RETURN_IF_NOK(do_rtt_tcp_payload(s));
+	BARRIER;
 	my_log(s, "rtt_tcp_payload end.");
 
 	/* downlink */
 	set_phase(s, PH_dl);
 	my_log(s, "downlink test start... (%" PRIuFAST16 "s)", s->config->dl_duration_s);
 	if (s->targ->do_downlink) {
-		ok = do_downlink(s);
-		if (!ok)
-			return false;
-		ok = check_for_reconnect(s);
-		if (!ok)
-			return false;
+		RETURN_IF_NOK(do_downlink(s));
+		RETURN_IF_NOK(check_for_reconnect(s));
 	}
-	barrier_wait(s);
+	BARRIER;
 	my_log(s, "downlink test end.");
 
 	/* pretest uplink */
 	set_phase(s, PH_pretest_ul);
 	my_log(s, "pretest uplink start... (min %" PRIuFAST16 "s)", s->config->ul_pretest_duration_s);
-	if (s->targ->do_uplink) {
-		ok = do_prestest_uplink(s);
-		if (!ok)
-			return false;
-	}
-	barrier_wait(s);
+	if (s->targ->do_uplink)
+		RETURN_IF_NOK(do_prestest_uplink(s));
+	BARRIER;
 	my_log(s, "pretest uplink end.");
 
 	/* uplink */
 	set_phase(s, PH_ul);
 	my_log(s, "uplink test start... (%" PRIuFAST16 "s)", s->config->ul_duration_s);
 	if (s->targ->do_uplink) {
-		ok = do_uplink(s);
-		if (!ok)
-			return false;
+		RETURN_IF_NOK(do_uplink(s));
 	} else
-		barrier_wait(s); // there is a barrier_wait in do_uplink
-	barrier_wait(s);
+		BARRIER; // there is a BARRIER in do_uplink
+	BARRIER;
 	my_log(s, "uplink test end.");
 
 	/* end */
 	set_phase(s, PH_end);
 	my_log(s, "disconnecting.");
-	ok = quit(s);
-	if (!ok)
-		return false;
+	RETURN_IF_NOK(quit(s));
 	return true;
 }
 

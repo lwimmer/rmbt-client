@@ -270,10 +270,6 @@ int main(int argc, char **argv) {
 	int_fast16_t num_threads = config.dl_num_flows;
 	if (config.ul_num_flows > num_threads)
 		num_threads = config.ul_num_flows;
-	pthread_barrier_t barrier;
-	r = pthread_barrier_init(&barrier, NULL, (unsigned int) num_threads);
-	if (r != 0)
-		fail_errno(r, "could not pthread_barrier_init");
 
 	ThreadArg thread_arg[num_threads];
 	memset(thread_arg, 0, sizeof(thread_arg));
@@ -281,20 +277,21 @@ int main(int argc, char **argv) {
 	memset(flow_results, 0, sizeof(flow_results));
 	StatsThreadEntry stats_entries[num_threads];
 	memset(stats_entries, 0, sizeof(stats_entries));
+	RmbtBarrier barrier = RMBT_BARRIER_INITIALIZER;
+	barrier.total = num_threads;
 
 	result.time_start_s = time(NULL);
 
 	struct timespec ts_zero;
 	ts_fill(&ts_zero);
-	atomic_bool global_state = true;
 
 	for (int_fast16_t t = 0; t < num_threads; t++) {
 		thread_arg[t].cfg = &config;
-		thread_arg[t].barrier = &barrier;
 		thread_arg[t].thread_num = t;
+		thread_arg[t].thread_count = num_threads;
 		thread_arg[t].ts_zero = &ts_zero;
 		thread_arg[t].flow_result = &flow_results[t];
-		thread_arg[t].global_state = &global_state;
+		thread_arg[t].barrier = &barrier;
 		thread_arg[t].do_log = t == 0;
 		thread_arg[t].do_rtt_tcp_payload = t == 0;
 		thread_arg[t].do_downlink = t < config.dl_num_flows;
@@ -329,8 +326,6 @@ int main(int argc, char **argv) {
 		if (r != 0)
 			fail_errno(r, "could not join stats thread");
 	}
-
-	pthread_barrier_destroy(&barrier);
 
 	result.time_end_s = time(NULL);
 
