@@ -32,14 +32,14 @@
   \"cnf_encrypt_debug\": false, \n\
   \"cnf_timeout_s\": 30, \n\
   \"cnf_rtt_tcp_payload_num\": 11, \n\
-  \"cnf_dl_num_flows\": 3, \n\
-  \"cnf_ul_num_flows\": 3, \n\
-  \"cnf_dl_duration_s\": 7, \n\
-  \"cnf_ul_duration_s\": 7, \n\
-  \"cnf_dl_pretest_duration_s\": 2, \n\
-  \"cnf_ul_pretest_duration_s\": 2, \n\
-  \"cnf_dl_wait_time_s\": 30, \n\
-  \"cnf_ul_wait_time_s\": 30, \n\
+  \"cnf_dl_num_flows\": 5, \n\
+  \"cnf_ul_num_flows\": 5, \n\
+  \"cnf_dl_duration_s\": 10, \n\
+  \"cnf_ul_duration_s\": 10, \n\
+  \"cnf_dl_pretest_duration_s\": 1, \n\
+  \"cnf_ul_pretest_duration_s\": 1, \n\
+  \"cnf_dl_wait_time_s\": 20, \n\
+  \"cnf_ul_wait_time_s\": 20, \n\
   \"cnf_tcp_info_sample_rate_ns\": 0 \n\
 }"
 
