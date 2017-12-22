@@ -116,7 +116,7 @@ openssl req -x509 -newkey rsa:4096 -keyout server.key -out server.crt -nodes -su
 make server-prod random
 ```
 
-To use systemd to run rmbtd you can create a file like this and save it as `/etc/systemd/system/rmbtd.service`:
+To use systemd for running rmbtd as a service you can create a file like this and save it as `/etc/systemd/system/rmbtd.service`:
 
 ```
 [Unit]
@@ -137,8 +137,11 @@ Paths and ports may need to be changed (lines given above configure to start lis
 
 To finally run and enable the server at bootup run the following commands as root:
 
-systemctl start rmbtd
-systemctl enable rmbtd
+```
+systemctl daemon-reload
+systemctl start rmbtd.service
+systemctl enable rmbtdservice
+```
 
 You can use the following command (or edit the config file manually) to change the number of flows that the server allows (change <n>):
 ```
