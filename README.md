@@ -71,6 +71,7 @@ A minimum configuration file could look something like this:
 {
   "cnf_server_host": "127.0.0.1",
   "cnf_server_port": 8081,
+  "cnf_secret": ""
 }
 ```
 
