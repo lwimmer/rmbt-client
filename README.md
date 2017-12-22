@@ -133,7 +133,7 @@ Restart=always
 WantedBy=multi-user.target
 ```
 
-Paths and ports may need to be changed (lines given above configure to start listening on localhost ports 10080 -without encryption- and 10443 -with encryption-).
+Paths and ports may need to be changed (lines given above configure to start listening on ports 10080 -without encryption- and 10443 -with encryption-).
 
 To finally run and enable the server at bootup run the following commands as root:
 
@@ -143,7 +143,8 @@ systemctl start rmbtd.service
 systemctl enable rmbtdservice
 ```
 
-You can use the following command (or edit the config file manually) to change the number of flows that the server allows (change <n>):
+You can use the following command (or edit the config file manually) to change the number of flows that the server allows (replace `<n>`; rebuild afterwards):
+  
 ```
 sed -i 's|#define DEFAULT_NUM_THREADS   200|#define DEFAULT_NUM_THREADS   <n>|' config.h
 ```
