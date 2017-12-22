@@ -2,10 +2,10 @@
 
 For more information about RMBT see also:
 
-* https://www.netztest.at/doc/
-* https://github.com/alladin-IT/open-rmbt
-* https://nettest.alladin.at/home
-* https://github.com/MONROE-PROJECT/Experiments/tree/master/experiments/nettest
+* RMBT specification: https://www.netztest.at/doc/
+* Open-RMBT: https://github.com/alladin-IT/open-rmbt
+* alladin-Nettest: https://nettest.alladin.at/
+* [MONROE](https://www.monroe-project.eu/) experiment nettest: https://github.com/MONROE-PROJECT/Experiments/tree/master/experiments/nettest
 
 This code is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
 
