@@ -943,7 +943,7 @@ static bool do_putchunks(State *s, int_fast32_t chunks, struct timespec *ts_zero
 	return read_ok_accept(s);
 }
 
-static inline bool do_prestest_uplink(State *s) {
+static inline bool do_pretest_uplink(State *s) {
 	return do_pretest(s, s->config->ul_pretest_duration_s, &s->targ->flow_result->pretest_ul, do_putchunks);
 }
 
@@ -1153,7 +1153,7 @@ static bool run_test(State *s) {
 	set_phase(s, PH_pretest_ul);
 	my_log(s, "pretest uplink start... (min %" PRIuFAST16 "s)", s->config->ul_pretest_duration_s);
 	if (s->targ->do_uplink)
-		RETURN_IF_NOK(do_prestest_uplink(s));
+		RETURN_IF_NOK(do_pretest_uplink(s));
 	BARRIER;
 	my_log(s, "pretest uplink end.");
 
