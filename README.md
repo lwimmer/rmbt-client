@@ -2,9 +2,10 @@
 
 For more information about RMBT see also:
 
+* RMBT server: https://github.com/rtr-nettest/rmbt-server
+* RTR-NetTest: https://www.netztest.at/
 * RMBT specification: https://www.netztest.at/doc/
-* Open-RMBT: https://github.com/alladin-IT/open-rmbt
-* alladin-Nettest: https://nettest.alladin.at/
+* Open-RMBT: https://github.com/rtr-nettest/open-rmbt
 * [MONROE](https://www.monroe-project.eu/) experiment nettest: https://github.com/MONROE-PROJECT/Experiments/tree/master/experiments/nettest
 
 This code is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
@@ -81,7 +82,7 @@ For more information see the file [`config.example.json`](config.example.json).
 
 ## Server installation
 
-The server code can be found here: https://github.com/alladin-IT/open-rmbt
+The server code can be found here: https://github.com/rtr-nettest/rmbt-server
 
 It has the following requirements:
 
@@ -106,8 +107,8 @@ yum install git make gccopenssl-devel libuuid-devel
 To build simply run:
 
 ```
-git clone https://github.com/alladin-IT/open-rmbt
-cd open-rmbt/RMBTServer/
+git clone https://github.com/rtr-nettest/rmbt-server
+cd rmbt-server/
 # The following line disables the token check:
 sed -i 's|#define CHECK_TOKEN 1|#define CHECK_TOKEN 0|' config.h
 # Generate self-signed certificate:
