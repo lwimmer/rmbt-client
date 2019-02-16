@@ -1,0 +1,6 @@
+**
+!autobuild.sh
+!configure.ac
+!Makefile.am
+!src/**
+!.git/**
