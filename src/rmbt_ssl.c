@@ -33,13 +33,6 @@ static void lock_callback(int mode, int type, const char *file, int line) {
 		pthread_mutex_unlock(&(lockarray[type]));
 	}
 }
-
-static unsigned long thread_id(void) {
-	unsigned long ret;
-
-	ret = (unsigned long) pthread_self();
-	return (ret);
-}
 #pragma GCC diagnostic pop  // require GCC 4.6
 
 void init_ssl(bool ssl) {
@@ -52,7 +45,6 @@ void init_ssl(bool ssl) {
 	SSL_library_init(); /* load encryption & hash algorithms for SSL */
 	SSL_load_error_strings(); /* we also want some error msg without using ssl */
 
-	CRYPTO_set_id_callback(thread_id);
 	CRYPTO_set_locking_callback(lock_callback);
 
 	if (ssl) {
