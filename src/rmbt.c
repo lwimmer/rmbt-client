@@ -232,7 +232,7 @@ int main(int argc, char **argv) {
 		fail("host is required (either via config file or -h)");
 
 	if (config.server_port == 0)
-		fail("port is required (either via config file or -h)");
+		fail("port is required (either via config file or -p)");
 
 	if (config.secret == NULL && config.token == NULL)
 		fail("either token or secret is required (either via config file, -s or -t)");
