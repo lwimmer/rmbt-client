@@ -2,5 +2,6 @@
 !autobuild.sh
 !configure.ac
 !Makefile.am
-!src/**
-!.git/**
+!src/*.c
+!src/*.h
+!src/Makefile.am
