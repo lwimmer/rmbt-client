@@ -10,6 +10,41 @@ For more information about RMBT see also:
 
 This code is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
 
+
+## Docker
+
+### Server
+
+To run the rmbt-server with docker, run:
+
+```
+docker run -v rmbtd-config:/config -p 8081-8082:8081-8082 lwimmer/rmbt-server
+```
+
+For more information see https://github.com/lwimmer/rmbt-server
+
+### Client
+
+To run rmbt-client with docker, run:
+
+```
+docker run lwimmer/rmbt-client -h <server hostname> -p <server port> -s <secret>
+```
+
+For more information about the configuration parameters, see below.
+
+To supply a config file you can use:
+
+```
+docker run -v <path to config>:/config.json:ro lwimmer/rmbt-client -c config.json
+```
+
+or
+
+```
+docker run -i lwimmer/rmbt-client -c - < <path to config>
+```
+
 ## Building
 
 rmbt-client has the following requirements:
@@ -145,7 +180,7 @@ systemctl enable rmbtdservice
 ```
 
 You can use the following command (or edit the config file manually) to change the number of flows that the server allows (replace `<n>`; rebuild afterwards):
-  
+
 ```
 sed -i 's|#define DEFAULT_NUM_THREADS   200|#define DEFAULT_NUM_THREADS   <n>|' config.h
 ```
