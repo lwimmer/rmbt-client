@@ -1,5 +1,7 @@
 # rmbt-client - RMBT speed measurement client in C
 
+*This project is a result of the master thesis ["Platform for Measuring Mobile Broadband Performance Analysis and Implementation"](http://katalog.ub.tuwien.ac.at/AC15450655). Detailed documentation can be found in the thesis.*
+
 For more information about RMBT see also:
 
 * RMBT server: https://github.com/rtr-nettest/rmbt-server
